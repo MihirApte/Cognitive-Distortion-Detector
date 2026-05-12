@@ -1,0 +1,57 @@
+# ============================================================
+# .gitignore — Cognitive Distortion Detector
+# ============================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data (raw CSVs and large files — don't commit to git)
+data/raw/
+data/processed/
+data/synthetic/
+*.csv
+
+# Trained model weights (large — use HuggingFace Hub instead)
+models/
+*.bin
+*.pt
+*.pth
+*.safetensors
+
+# Results / outputs
+results/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
