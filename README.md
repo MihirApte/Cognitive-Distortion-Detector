@@ -54,7 +54,7 @@ Cognitive-Distortion-Detector/
 
 ## Tech Stack
 
-- **Model**: DistilBERT (`distilbert-base-uncased`) — HuggingFace Transformers
+- **Model**: DistilBERT (`distilbert-base-uncased`) - HuggingFace Transformers
 - **Training**: Google Colab (T4 GPU)
 - **Backend**: FastAPI + Uvicorn
 - **Frontend**: HTML / CSS / JavaScript
@@ -69,7 +69,7 @@ Cognitive-Distortion-Detector/
 2,530 annotated patient questions from a therapist Q&A platform.  
 Pre-split: 2,020 train / 506 test.
 
-Original source: Shreevastava & Foltz (2021) — *Detecting Cognitive Distortions from Patient-Therapist Interactions*
+Original source: Shreevastava & Foltz (2021) - *Detecting Cognitive Distortions from Patient-Therapist Interactions*
 
 ---
 
@@ -77,12 +77,12 @@ Original source: Shreevastava & Foltz (2021) — *Detecting Cognitive Distortion
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_USERNAME/Cognitive-Distortion-Detector.git
+git clone https://github.com/MihirApte/Cognitive-Distortion-Detector.git
 cd Cognitive-Distortion-Detector
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+source venv/bin/activate      
 
 # Install dependencies
 pip install -r requirements.txt
@@ -90,6 +90,3 @@ pip install -r requirements.txt
 
 ---
 
-## Status
-
-🚧 Work in progress — built over 8 days as an ML portfolio project.

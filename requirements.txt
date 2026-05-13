@@ -1,4 +1,4 @@
-# Cognitive Distortion Detector — Full Project Requirements
+# Cognitive Distortion Detector - Full Project Requirements
 # Install with: pip install -r requirements.txt
 
 
