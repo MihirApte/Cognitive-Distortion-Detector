@@ -1,0 +1,90 @@
+{
+  "model": "DistilBERT fine-tuned",
+  "micro_f1": 0.2366,
+  "macro_f1": 0.2293,
+  "hamming_loss": 0.2589,
+  "per_label_f1": {
+    "All-or-nothing thinking": 0.1818,
+    "Overgeneralization": 0.2672,
+    "Mental filter": 0.1731,
+    "Should statements": 0.1875,
+    "Labeling": 0.3043,
+    "Personalization": 0.1846,
+    "Catastrophising/Magnification": 0.2793,
+    "Emotional Reasoning": 0.2411,
+    "Mind Reading": 0.2642,
+    "Fortune-telling": 0.2099
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.6926,
+      "val_loss": 0.592,
+      "micro_f1": 0.1468,
+      "macro_f1": 0.146
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.592,
+      "val_loss": 0.577,
+      "micro_f1": 0.1691,
+      "macro_f1": 0.179
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.5758,
+      "val_loss": 0.562,
+      "micro_f1": 0.1993,
+      "macro_f1": 0.1964
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.5501,
+      "val_loss": 0.5598,
+      "micro_f1": 0.199,
+      "macro_f1": 0.1974
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.5114,
+      "val_loss": 0.562,
+      "micro_f1": 0.212,
+      "macro_f1": 0.2016
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.4695,
+      "val_loss": 0.5542,
+      "micro_f1": 0.2155,
+      "macro_f1": 0.2079
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.4301,
+      "val_loss": 0.5626,
+      "micro_f1": 0.2254,
+      "macro_f1": 0.22
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.3966,
+      "val_loss": 0.5658,
+      "micro_f1": 0.2286,
+      "macro_f1": 0.2231
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.3696,
+      "val_loss": 0.5691,
+      "micro_f1": 0.2318,
+      "macro_f1": 0.2236
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.3552,
+      "val_loss": 0.5734,
+      "micro_f1": 0.2366,
+      "macro_f1": 0.2293
+    }
+  ]
+}
