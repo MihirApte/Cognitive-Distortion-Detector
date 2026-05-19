@@ -28,12 +28,8 @@ data/processed/
 data/synthetic/
 *.csv
 
-# Trained model weights (large — use HuggingFace Hub instead)
-models/
-*.bin
-*.pt
-*.pth
-*.safetensors
+# Trained model weights — tracked via Git LFS (see .gitattributes)
+# models/ and large weight files ARE committed, but stored in LFS
 
 # Results / outputs
 results/

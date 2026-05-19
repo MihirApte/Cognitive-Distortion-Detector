@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cognitive Distortion Detector</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f0f4f8;
+      --surface:     #ffffff;
+      --primary:     #4a6fa5;
+      --primary-dk:  #3a5a8a;
+      --accent:      #e8f0fe;
+      --text:        #2d3748;
+      --text-muted:  #718096;
+      --border:      #e2e8f0;
+      --danger:      #e53e3e;
+      --success:     #38a169;
+      --warn:        #d69e2e;
+      --radius:      12px;
+      --shadow:      0 4px 20px rgba(0,0,0,0.08);
+      --shadow-sm:   0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: var(--primary);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 20px; flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    header p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    main {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 36px 20px 80px;
+    }
+
+    /* ── Input card ───────────────────────────────────────────────────── */
+    .input-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px;
+      margin-bottom: 28px;
+    }
+
+    .input-card label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .input-card label span {
+      font-weight: 400;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      padding: 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.97rem;
+      font-family: inherit;
+      color: var(--text);
+      resize: vertical;
+      transition: border-color 0.2s;
+      outline: none;
+      background: #fafbfc;
+    }
+
+    textarea:focus { border-color: var(--primary); background: #fff; }
+    textarea.over-limit { border-color: var(--danger); }
+
+    .input-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    #word-counter {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    #word-counter.over { color: var(--danger); font-weight: 600; }
+
+    #analyse-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 11px 28px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    #analyse-btn:hover:not(:disabled) { background: var(--primary-dk); }
+    #analyse-btn:active:not(:disabled) { transform: scale(0.98); }
+    #analyse-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* ── Spinner ──────────────────────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2.5px solid rgba(255,255,255,0.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error / Info banners ─────────────────────────────────────────── */
+    #error-msg {
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      color: var(--danger);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    #no-result-msg {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      text-align: center;
+      color: var(--text-muted);
+      display: none;
+    }
+
+    #no-result-msg .emoji { font-size: 2rem; margin-bottom: 10px; }
+    #no-result-msg strong { display: block; color: var(--text); font-size: 1rem; margin-bottom: 6px; }
+
+    /* ── Results section ──────────────────────────────────────────────── */
+    #results-section { display: none; }
+
+    .results-header {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    /* ── Distortion card ──────────────────────────────────────────────── */
+    .distortion-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px 24px;
+      margin-bottom: 16px;
+      border-left: 4px solid var(--primary);
+      animation: slide-in 0.3s ease both;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .label-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .prob-badge {
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .prob-high   { background: #fed7d7; color: #c53030; }
+    .prob-medium { background: #feebc8; color: #c05621; }
+    .prob-low    { background: #e9f5e9; color: #276749; }
+
+    /* Confidence bar */
+    .prob-bar-wrap {
+      height: 6px;
+      background: var(--border);
+      border-radius: 4px;
+      margin: 10px 0 14px;
+      overflow: hidden;
+    }
+
+    .prob-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--primary);
+      transition: width 0.6s ease;
+    }
+
+    /* LIME keywords */
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 18px;
+    }
+
+    .keyword {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.83rem;
+      font-weight: 600;
+      border: 1.5px solid transparent;
+    }
+
+    .keyword.positive { background: #ebf4ff; color: #2b6cb0; border-color: #bee3f8; }
+    .keyword.negative { background: #fff5f5; color: #c53030; border-color: #fed7d7; }
+
+    /* Therapy button */
+    .therapy-btn {
+      background: none;
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+      padding: 8px 20px;
+      border-radius: 7px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+
+    .therapy-btn:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* ── Modal ────────────────────────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-backdrop.open {
+      opacity: 1; pointer-events: all;
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      padding: 30px;
+      max-width: 540px;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      transform: translateY(14px);
+      transition: transform 0.2s;
+    }
+
+    .modal-backdrop.open .modal { transform: translateY(0); }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 22px;
+    }
+
+    .modal-title { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+    .modal-subtitle { font-size: 0.82rem; color: var(--text-muted); margin-top: 3px; }
+
+    .modal-close {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: 1.3rem; line-height: 1;
+      padding: 2px; flex-shrink: 0;
+    }
+
+    .modal-close:hover { color: var(--text); }
+
+    .guidance-block {
+      background: var(--bg);
+      border-radius: 9px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+
+    .guidance-block:last-child { margin-bottom: 0; }
+
+    .guidance-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    .guidance-text {
+      font-size: 0.92rem;
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 48px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo-icon">🧠</div>
+  <div>
+    <h1>Cognitive Distortion Detector</h1>
+    <p>Identify thinking patterns using NLP — powered by DistilBERT + LIME</p>
+  </div>
+</header>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Input card -->
+  <div class="input-card">
+    <label for="user-input">
+      Describe your thoughts &nbsp;<span>(max 150 words)</span>
+    </label>
+    <textarea
+      id="user-input"
+      placeholder="e.g. I always mess things up. Everyone must think I'm incompetent..."
+      spellcheck="true"
+    ></textarea>
+    <div class="input-meta">
+      <span id="word-counter">0 / 150 words</span>
+      <button id="analyse-btn" onclick="runAnalysis()">
+        <span class="spinner" id="spinner"></span>
+        <span id="btn-label">Analyse</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Error banner -->
+  <div id="error-msg"></div>
+
+  <!-- No distortions found -->
+  <div id="no-result-msg">
+    <div class="emoji">✅</div>
+    <strong>No cognitive distortions detected</strong>
+    The model didn't find any distortion patterns above the confidence threshold in your text.
+    Try describing a specific thought or situation.
+  </div>
+
+  <!-- Results -->
+  <div id="results-section">
+    <div class="results-header" id="results-header"></div>
+    <div id="cards-container"></div>
+  </div>
+
+  <footer>
+    This tool is for educational purposes only and does not constitute medical or psychological advice.
+  </footer>
+
+</main>
+
+<!-- ── Therapy Modal ───────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title"></div>
+        <div class="modal-subtitle" id="modal-subtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeModalDirect()" aria-label="Close">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ── Script ──────────────────────────────────────────────────────────────── -->
+<script>
+  // Relative URL — works locally (port 8000) and on HuggingFace Spaces (port 7860)
+  const API_URL    = "/analyse";
+  const WORD_LIMIT = 150;
+
+  // ── Word counter ─────────────────────────────────────────────────────────
+  const textarea    = document.getElementById("user-input");
+  const wordCounter = document.getElementById("word-counter");
+
+  textarea.addEventListener("input", updateCounter);
+
+  function countWords(text) {
+    return text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+  }
+
+  function updateCounter() {
+    const n = countWords(textarea.value);
+    wordCounter.textContent = `${n} / ${WORD_LIMIT} words`;
+    wordCounter.classList.toggle("over", n > WORD_LIMIT);
+    textarea.classList.toggle("over-limit", n > WORD_LIMIT);
+  }
+
+  // ── Analysis ─────────────────────────────────────────────────────────────
+  async function runAnalysis() {
+    const text = textarea.value.trim();
+
+    // Clear previous state
+    hide("results-section");
+    hide("no-result-msg");
+    hide("error-msg");
+
+    if (!text) {
+      showError("Please enter some text before analysing.");
+      return;
+    }
+
+    if (countWords(text) > WORD_LIMIT) {
+      showError(`Your text exceeds the ${WORD_LIMIT}-word limit. Please shorten it.`);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data?.detail?.[0]?.msg || data?.detail || "Something went wrong.";
+        showError(msg);
+        return;
+      }
+
+      renderResults(data);
+
+    } catch (err) {
+      showError("Cannot reach the API. Make sure the backend is running on port 8000.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Render results ────────────────────────────────────────────────────────
+  function renderResults(data) {
+    const { detected, word_count } = data;
+
+    if (!detected || detected.length === 0) {
+      show("no-result-msg");
+      return;
+    }
+
+    document.getElementById("results-header").textContent =
+      `${detected.length} distortion${detected.length > 1 ? "s" : ""} detected`;
+
+    const container = document.getElementById("cards-container");
+    container.innerHTML = "";
+
+    detected.forEach((item, i) => {
+      const card = buildCard(item, i);
+      container.appendChild(card);
+    });
+
+    show("results-section");
+  }
+
+  function buildCard(item, index) {
+    const pct = Math.round(item.probability * 100);
+
+    // Colour tier
+    let probClass = "prob-low";
+    if (pct >= 70)      probClass = "prob-high";
+    else if (pct >= 40) probClass = "prob-medium";
+
+    // Keywords
+    const keywordsHTML = item.top_words.map(w => {
+      const cls = w.weight >= 0 ? "positive" : "negative";
+      return `<span class="keyword ${cls}">${escHtml(w.word)}</span>`;
+    }).join("");
+
+    const card = document.createElement("div");
+    card.className = "distortion-card";
+    card.style.animationDelay = `${index * 0.07}s`;
+
+    card.innerHTML = `
+      <div class="card-top">
+        <span class="label-name">${escHtml(item.label)}</span>
+        <span class="prob-badge ${probClass}">${pct}% confidence</span>
+      </div>
+
+      <div class="prob-bar-wrap">
+        <div class="prob-bar-fill" style="width: ${pct}%"></div>
+      </div>
+
+      <div class="section-label">Key words driving this prediction</div>
+      <div class="keywords">${keywordsHTML || "<em style='color:#aaa;font-size:0.85rem'>No keywords available</em>"}</div>
+
+      <button class="therapy-btn" onclick="openModal(${index})">
+        💬 Therapy guidance
+      </button>
+    `;
+
+    // Attach guidance data directly to the card element for the modal
+    card._guidance = item.guidance;
+    card._label    = item.label;
+
+    return card;
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+  // Store guidance for all current results so modal can access them
+  let _currentResults = [];
+
+  function renderResults(data) {
+    const { detected } = data;
+    _currentResults = detected || [];
+
+    if (_currentResults.length === 0) {
+      show("no-result-msg");
+      return;
+    }
+
+    document.getElementById("results-header").textContent =
+      `${_currentResults.length} distortion${_currentResults.length > 1 ? "s" : ""} detected`;
+
+    const container = document.getElementById("cards-container");
+    container.innerHTML = "";
+
+    _currentResults.forEach((item, i) => {
+      container.appendChild(buildCard(item, i));
+    });
+
+    show("results-section");
+  }
+
+  function openModal(index) {
+    const item = _currentResults[index];
+    if (!item) return;
+
+    const g = item.guidance;
+
+    document.getElementById("modal-title").textContent = item.label;
+    document.getElementById("modal-subtitle").textContent =
+      `CBT technique: ${g.technique}`;
+
+    document.getElementById("modal-body").innerHTML = `
+      <div class="guidance-block">
+        <div class="guidance-tag">What is this distortion?</div>
+        <div class="guidance-text">${escHtml(g.explanation)}</div>
+      </div>
+      <div class="guidance-block">
+        <div class="guidance-tag">Challenge your thought</div>
+        <div class="guidance-text">${escHtml(g.challenge)}</div>
+      </div>
+      <div class="guidance-block">
+        <div class="guidance-tag">Reframe it</div>
+        <div class="guidance-text">${escHtml(g.reframe)}</div>
+      </div>
+    `;
+
+    document.getElementById("modal-backdrop").classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal(event) {
+    // Close only if clicking the backdrop itself, not the modal
+    if (event.target === document.getElementById("modal-backdrop")) {
+      closeModalDirect();
+    }
+  }
+
+  function closeModalDirect() {
+    document.getElementById("modal-backdrop").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  // Close on Escape key
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeModalDirect();
+  });
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function setLoading(on) {
+    const btn     = document.getElementById("analyse-btn");
+    const spinner = document.getElementById("spinner");
+    const label   = document.getElementById("btn-label");
+    btn.disabled        = on;
+    spinner.style.display = on ? "block" : "none";
+    label.textContent   = on ? "Analysing…" : "Analyse";
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("error-msg");
+    el.textContent = msg;
+    show("error-msg");
+  }
+
+  function show(id) { document.getElementById(id).style.display = "block"; }
+  function hide(id) { document.getElementById(id).style.display = "none"; }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+</script>
+</body>
+</html>
