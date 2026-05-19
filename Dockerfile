@@ -19,16 +19,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# ── Install CPU-only PyTorch first ─────────────────────────────────────────────
-# Avoids downloading 2GB+ CUDA wheels on a CPU-only Space.
+# ── Install CPU-only PyTorch via direct wheel URL ──────────────────────────────
+# Using --index-url breaks dependency resolution (pip can't reach PyPI for
+# torch's own deps like typing-extensions). Installing from the wheel URL
+# directly lets pip resolve all dependencies from PyPI as normal.
 RUN pip install --no-cache-dir \
-    torch==2.6.0 \
-    --index-url https://download.pytorch.org/whl/cpu
+    "https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp310-cp310-linux_x86_64.whl"
 
-# ── Install remaining dependencies ─────────────────────────────────────────────
-# torch is already satisfied above; pip skips reinstalling it.
+# ── Install remaining dependencies (excluding torch) ───────────────────────────
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN grep -v "^torch" requirements.txt > requirements-filtered.txt && \
+    pip install --no-cache-dir -r requirements-filtered.txt
 
 # ── Copy application code ──────────────────────────────────────────────────────
 COPY . .
