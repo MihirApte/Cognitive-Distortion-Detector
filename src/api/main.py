@@ -41,9 +41,17 @@ from src.config import DISTORTION_LABELS
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 WORD_LIMIT   = 150
-THRESHOLD    = 0.2     # label predicted positive if prob >= this
+THRESHOLD    = 0.40    # label predicted positive if prob >= this
 NUM_FEATURES = 6       # top LIME words per label
 NUM_SAMPLES  = 300     # LIME perturbations — reduced for API latency
+
+# Single-char tokens and subword artifacts to strip from LIME keyword output
+# (DistilBERT tokenises "I'm" → ["I", "m"] — "m" is meaningless as a keyword)
+_NOISE_TOKENS = {
+    "m", "s", "t", "re", "ve", "ll", "d",       # subword artifacts from I'm, it's, etc.
+    "and", "the", "a", "an", "of", "to", "in",  # stopwords that carry no distortion signal
+    "is", "it", "be", "or", "at", "by", "but",
+}
 
 # ── Global model (loaded once at startup) ─────────────────────────────────────
 _explainer: Explainer | None = None
@@ -185,6 +193,7 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
         top_words = [
             WordWeight(word=w, weight=round(float(wt), 4))
             for w, wt in lime_result["top_words"]
+            if len(w) > 1 and w.lower() not in _NOISE_TOKENS
         ]
 
         # Guidance lookup
