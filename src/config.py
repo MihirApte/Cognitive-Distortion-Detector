@@ -39,9 +39,10 @@ CSV_NO_DISTORTION = "No Distortion"
 #  HuggingFace Dataset (kept for reference) 
 HF_DATASET_NAME = "danthareja/cognitive-distortion"
 
-#  Model
-BASE_MODEL       = "distilbert-base-uncased"
-MAX_TOKEN_LENGTH = 512
+#  Models
+BASE_MODEL            = "roberta-base"           # Phase 2 model (replaces DistilBERT)
+BASE_MODEL_DISTILBERT = "distilbert-base-uncased" # Phase 1 model (kept for reference)
+MAX_TOKEN_LENGTH      = 512
 
 #  Training Hyperparameters 
 BATCH_SIZE    = 16
@@ -56,7 +57,9 @@ ROOT_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_RAW_DIR  = os.path.join(ROOT_DIR, "data", "raw")
 DATA_PROC_DIR = os.path.join(ROOT_DIR, "data", "processed")
 DATA_SYN_DIR  = os.path.join(ROOT_DIR, "data", "synthetic")
-MODELS_DIR    = os.path.join(ROOT_DIR, "models")
+MODELS_DIR         = os.path.join(ROOT_DIR, "models")
+ROBERTA_MODEL_DIR  = os.path.join(ROOT_DIR, "models", "roberta_cognitive_distortion")
+DISTILBERT_MODEL_DIR = os.path.join(ROOT_DIR, "models", "distilbert_cognitive_distortion")
 RESULTS_DIR   = os.path.join(ROOT_DIR, "results")
 NOTEBOOKS_DIR = os.path.join(ROOT_DIR, "notebooks")
 

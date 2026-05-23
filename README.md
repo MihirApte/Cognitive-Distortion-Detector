@@ -42,11 +42,19 @@ Type a thought or sentence (up to 150 words). The app:
 
 ---
 
+## ⚠️ Phase 1 — Work in Progress
+
+This is **Phase 1** of an ongoing project. The deployed model is functional but performance is limited by training data quality. False positives and label confusion can occur. A clear "Work in Progress" notice is shown in the app.
+
+**Phase 2 is in active development:** DeBERTa-v3-base + Focal Loss + semantically distinct per-distortion training data. Expected to significantly reduce false positives and improve label separation.
+
+---
+
 ## Model Performance
 
-Fine-tuned DistilBERT (`distilbert-base-uncased`) on 2,020 training examples. Evaluated at threshold = 0.20.
+**Phase 1:** Fine-tuned DistilBERT (`distilbert-base-uncased`) on ~2,020 training examples. The API runs at **threshold = 0.40** (higher precision, lower recall compared to the evaluation below which used 0.20).
 
-| Metric | Score |
+| Metric | Score (threshold=0.20) |
 |--------|-------|
 | Micro F1 | 0.237 |
 | Macro F1 | 0.229 |
@@ -67,7 +75,7 @@ Fine-tuned DistilBERT (`distilbert-base-uncased`) on 2,020 training examples. Ev
 | Mind Reading | 0.264 |
 | Fortune-telling | 0.210 |
 
-**On the scores:** These are modest in absolute terms, and that's expected. The dataset (2,530 examples, 10 overlapping labels, sourced from therapist Q&A) is small, imbalanced, and inherently noisy — even human annotators disagree on many examples. A low threshold (0.20) was chosen deliberately to prioritise recall over precision, since missing a distortion is more costly in a CBT context than flagging one that isn't there. The model captures meaningful signal, particularly on Labeling and Catastrophising. Full error analysis is in `notebooks/03_error_analysis.ipynb`.
+**On the scores:** These are modest in absolute terms, and that's expected. The dataset (2,530 examples, 10 overlapping labels, sourced from therapist Q&A) is small, imbalanced, and inherently noisy — even human annotators disagree on many examples. The root cause of current limitations is template-based synthetic data using shared vocabulary across distortion classes. This is the primary target for Phase 2. Full error analysis is in `notebooks/03_error_analysis.ipynb`.
 
 ---
 
@@ -179,15 +187,4 @@ docker run -p 7860:7860 cdd-app
 # Open: http://localhost:7860
 ```
 
-**Note on latency:** LIME runs ~300 perturbations through DistilBERT on CPU per detected label. Expect 10–20 seconds per request on the free HuggingFace Spaces tier. This is a known trade-off of running LIME on CPU.
-
----
-
-## Notebooks
-
-| Notebook | Contents |
-|----------|----------|
-| `01_eda.ipynb` | Label distribution, class imbalance, text length analysis |
-| `02_training.ipynb` | DistilBERT fine-tuning on Colab T4, training curves |
-| `03_error_analysis.ipynb` | Per-label F1, confusion patterns, failure cases |
-| `04_lime_explanations.ipynb` | LIME word importance visualisations per distortion |
+**Note on latency:** LIME runs ~300 perturbations through DistilBERT on CPU per detected label. Expect 10–20 s

@@ -1,7 +1,7 @@
 """
 src/explain.py
 --------------
-LIME explainability wrapper for the fine-tuned DistilBERT model.
+LIME explainability wrapper for the fine-tuned DistilBERT model (Phase 1).
 
 Provides:
   - Explainer class: loads model, runs LIME, saves HTML + CSV outputs
@@ -28,13 +28,14 @@ from lime.lime_text import LimeTextExplainer
 from src.config import (
     DISTORTION_LABELS, NUM_LABELS,
     DATA_PROC_DIR, MODELS_DIR, RESULTS_DIR,
+    DISTILBERT_MODEL_DIR,
 )
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-MODEL_PATH   = os.path.join(MODELS_DIR, "distilbert_cognitive_distortion")
+MODEL_PATH   = DISTILBERT_MODEL_DIR   # models/distilbert_cognitive_distortion
 LIME_DIR     = os.path.join(RESULTS_DIR, "lime_explanations")
 MAX_LEN      = 128
-THRESHOLD    = 0.2
+THRESHOLD    = 0.40
 NUM_SAMPLES  = 500   # LIME perturbation samples — 500 is fast & stable enough
 NUM_FEATURES = 10    # top N words shown per explanation
 
@@ -47,7 +48,7 @@ SHORT = [
 
 class Explainer:
     """
-    Wraps DistilBERT for multi-label LIME explanations.
+    Wraps DistilBERT for multi-label LIME explanations (Phase 1).
 
     Example
     -------
@@ -60,12 +61,13 @@ class Explainer:
         if not os.path.isdir(model_path):
             raise FileNotFoundError(
                 f"Model not found at: {model_path}\n"
-                "Run python -m src.evaluate first (or extract the Colab zip)."
+                "Train DistilBERT first by running notebooks/02_train_distilbert.ipynb on Colab,\n"
+                "then place the saved model in models/distilbert_cognitive_distortion/."
             )
         self.threshold = threshold
         self.device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        print(f"Loading model from: {model_path}")
+        print(f"Loading DistilBERT model from: {model_path}")
         self.tokenizer = DistilBertTokenizerFast.from_pretrained(model_path)
         self.model     = DistilBertForSequenceClassification.from_pretrained(
             model_path, num_labels=NUM_LABELS
@@ -382,8 +384,4 @@ def run():
             continue
         words = ", ".join(sub["word"].tolist())
         print(f"  {label:<35} → {words}")
-    print("=" * 60)
-
-
-if __name__ == "__main__":
-    run()
+  

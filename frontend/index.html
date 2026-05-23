@@ -375,7 +375,12 @@
       font-size: 0.78rem;
       color: var(--text-muted);
       margin-top: 48px;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
     }
+    footer strong { color: var(--text); }
   </style>
 </head>
 <body>
@@ -429,7 +434,14 @@
   </div>
 
   <footer>
-    This tool is for educational purposes only and does not constitute medical or psychological advice.
+    <p>This tool is for educational purposes only and does not constitute medical or psychological advice.</p>
+    <p style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
+      ⚠️ <strong>Phase 1 — Work in Progress.</strong>
+      Currently powered by a fine-tuned <strong>DistilBERT</strong> model (Macro F1: 0.23).
+      Performance is limited by training data quality — false positives and label confusion can occur.
+      <strong>Phase 2</strong> is in development: DeBERTa-v3-base + Focal Loss + improved training data.
+      Testing and iteration ongoing.
+    </p>
   </footer>
 
 </main>
@@ -658,28 +670,4 @@
   function setLoading(on) {
     const btn     = document.getElementById("analyse-btn");
     const spinner = document.getElementById("spinner");
-    const label   = document.getElementById("btn-label");
-    btn.disabled        = on;
-    spinner.style.display = on ? "block" : "none";
-    label.textContent   = on ? "Analysing…" : "Analyse";
-  }
-
-  function showError(msg) {
-    const el = document.getElementById("error-msg");
-    el.textContent = msg;
-    show("error-msg");
-  }
-
-  function show(id) { document.getElementById(id).style.display = "block"; }
-  function hide(id) { document.getElementById(id).style.display = "none"; }
-
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-</script>
-</body>
-</html>
+    const label   = document.getElementById("btn-l

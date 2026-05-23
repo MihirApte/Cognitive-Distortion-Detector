@@ -29,25 +29,11 @@ data/synthetic/
 *.csv
 
 # Trained model weights — tracked via Git LFS (see .gitattributes)
-# models/ and large weight files ARE committed, but stored in LFS
+# Phase 1 (DistilBERT) model IS committed via LFS
+# Phase 2 (RoBERTa) model excluded — not deployed yet
+models/roberta_cognitive_distortion/
 
-# Results / outputs
-results/
+# Phase 2 test/dev scripts — not part of Phase 1
+test_roberta.py
 
-# Environment variables
-.env
-.env.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
+# Resu
