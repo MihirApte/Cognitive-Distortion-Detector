@@ -9,6 +9,7 @@ Each entry contains:
   - technique    : the CBT technique used to challenge it
   - challenge    : a Socratic question the therapist would ask
   - reframe      : an example of how to reframe the thought
+  - lime_hint    : one-line explanation of what kinds of words signal this distortion
 
 Usage:
     from src.guidance import get_guidance
@@ -23,194 +24,153 @@ _GUIDANCE: dict[str, dict] = {
 
     "All-or-nothing thinking": {
         "explanation": (
-            "You see things in black-and-white, with no middle ground. "
-            "If something isn't perfect, it's a total failure."
+            "Your mind is framing this as all-or-nothing — either perfect or a complete failure, "
+            "with nothing in between. This is one of the most common thinking traps, especially "
+            "under pressure, but it's almost never an accurate picture of reality."
         ),
         "technique": "Continuum Method",
         "challenge": (
-            "Is there a middle ground here? On a scale of 0–100, "
-            "where does this situation actually fall?"
+            "If you put this situation on a scale of 0 (total failure) to 100 (perfect success), "
+            "where does it honestly land? What would a score of 60 look like?"
         ),
         "reframe": (
-            "Instead of 'I failed completely', try: "
-            "'I didn't get everything right, but I did succeed at parts of it.'"
+            "Try replacing the all-or-nothing version with: "
+            "'This didn't go the way I wanted — but that's not the same as it being a complete failure. "
+            "There were parts I handled, and parts to improve.'"
+        ),
+        "lime_hint": (
+            "Absolute words like \"completely\", \"total\", \"perfect\", \"never\", or \"failure\" "
+            "signal black-and-white thinking that leaves no room for nuance."
         ),
     },
 
     "Overgeneralization": {
         "explanation": (
-            "You draw a broad conclusion from a single event, "
-            "using words like 'always', 'never', or 'everyone'."
+            "You're taking one event — or a few — and drawing a sweeping conclusion that applies "
+            "to everything. Words like 'always' and 'never' are a giveaway. One difficult experience "
+            "doesn't define a permanent pattern."
         ),
         "technique": "Evidence Examination",
         "challenge": (
-            "How many times has this actually happened? "
-            "Are there any exceptions to this pattern you might be overlooking?"
+            "How many times has this actually happened? Can you think of even one exception — "
+            "a time when things went differently? What does the full picture look like, "
+            "not just the recent example?"
         ),
         "reframe": (
-            "Instead of 'I always mess things up', try: "
-            "'This time didn't go well, but that doesn't define every situation.'"
+            "Try replacing the overgeneralized version with: "
+            "'This particular situation didn't go well. That doesn't mean it always goes this way — "
+            "this is one data point, not a life sentence.'"
+        ),
+        "lime_hint": (
+            "Words like \"always\", \"never\", \"every time\", \"everyone\", or \"no one\" "
+            "signal a broad conclusion drawn from limited evidence."
         ),
     },
 
     "Mental filter": {
         "explanation": (
-            "You focus exclusively on one negative detail and ignore "
-            "the bigger picture, like a drop of ink that colours the whole glass."
+            "You're zooming in on one negative detail and letting it colour your entire view of "
+            "the situation — filtering out anything positive or neutral. It's like a single drop "
+            "of ink that makes a whole glass of water look dark."
         ),
         "technique": "Positive Data Log",
         "challenge": (
-            "What else happened in this situation that you might be filtering out? "
-            "If a friend described this to you, what would they notice?"
+            "What else happened in this situation that you might be overlooking? "
+            "If someone who cared about you was watching, what would they have noticed "
+            "alongside the part you're focused on?"
         ),
         "reframe": (
-            "Instead of dwelling only on the one criticism, try: "
-            "'Three people praised my work and one person had a concern — "
-            "both pieces of feedback are real.'"
+            "Try widening the lens: "
+            "'Yes, that one thing went wrong — and other things went okay. "
+            "Both are real parts of what happened, and the negative detail doesn't cancel the rest.'"
+        ),
+        "lime_hint": (
+            "Words that zero in on a single flaw or negative moment — while the surrounding "
+            "context is ignored — are the signature of a mental filter at work."
         ),
     },
 
     "Should statements": {
         "explanation": (
-            "You hold rigid rules about how you or others must behave. "
-            "'Should', 'must', and 'ought' create pressure and guilt when unmet."
+            "You're holding yourself (or someone else) to a rigid rule — something that 'must', "
+            "'should', or 'ought' to be a certain way. These rules often come from old expectations "
+            "or external pressures, and when they're not met, the result is guilt, shame, or frustration."
         ),
         "technique": "Preference Reframing",
         "challenge": (
-            "Where did this rule come from? Is it a realistic expectation, "
-            "or a preference you've turned into a demand?"
+            "Where did this rule come from? Is it genuinely realistic, or is it a preference "
+            "you've turned into a demand? What would happen if you replaced 'I should' "
+            "with 'I'd prefer to' — how does that change how it feels?"
         ),
         "reframe": (
-            "Instead of 'I should never make mistakes', try: "
-            "'I'd prefer to do well, and it's okay when I fall short sometimes.'"
+            "Try softening the demand: "
+            "'I'd prefer to handle this without struggling, and it's okay that I sometimes don't. "
+            "That makes me human, not inadequate.'"
+        ),
+        "lime_hint": (
+            "Words like \"should\", \"must\", \"ought to\", \"have to\", or \"need to\" "
+            "signal rigid internal rules that create pressure when unmet."
         ),
     },
 
     "Labeling": {
         "explanation": (
-            "You attach a global negative label to yourself or others "
-            "based on a single event, going beyond the behaviour to the person."
+            "You've taken one action or mistake and used it to define yourself (or someone else) "
+            "as a whole person. A label like 'I'm a failure' is an identity claim — it goes "
+            "far beyond what actually happened and treats a behaviour as the entire person."
         ),
         "technique": "Behaviour–Identity Separation",
         "challenge": (
-            "Is one action the same as your entire identity? "
-            "Would you define another person entirely by one mistake they made?"
+            "Would you define a close friend entirely by one mistake they made? "
+            "What's the difference between 'I did something wrong' and 'I am wrong as a person'? "
+            "Is one action really the full story of who you are?"
         ),
         "reframe": (
-            "Instead of 'I'm a loser', try: "
-            "'I made a mistake in this situation — that's something I did, not who I am.'"
+            "Try separating the action from the identity: "
+            "'I made a mistake in this situation. That's something I did — not a verdict "
+            "on who I am. People who care about quality sometimes fall short of it.'"
+        ),
+        "lime_hint": (
+            "Global identity words — \"loser\", \"failure\", \"idiot\", \"worthless\" — "
+            "attached to a whole person rather than a specific behaviour signal labeling."
         ),
     },
 
     "Personalization": {
         "explanation": (
-            "You blame yourself (or others) as the primary cause of events "
-            "that are actually outside your full control."
+            "You're taking personal responsibility for something that had many contributing factors — "
+            "as if you were the sole cause. This usually leads to excessive guilt or blame "
+            "for outcomes that were never fully in your control."
         ),
         "technique": "Responsibility Pie Chart",
         "challenge": (
-            "What other factors might have contributed to this outcome? "
-            "If you listed every cause and gave each a percentage, "
-            "how much is genuinely your responsibility?"
+            "If you listed every factor that contributed to this outcome and gave each a percentage, "
+            "how much is genuinely yours? What other people, circumstances, or variables "
+            "played a role that had nothing to do with you?"
         ),
         "reframe": (
-            "Instead of 'It's all my fault they're upset', try: "
-            "'My actions were one factor — the situation had many contributing parts.'"
+            "Try distributing responsibility more accurately: "
+            "'My actions were one part of this — but there were other factors involved. "
+            "I can own my share without carrying the whole weight.'"
+        ),
+        "lime_hint": (
+            "Words like \"my fault\", \"because of me\", \"I caused\", or \"if only I had\" "
+            "signal taking on more personal responsibility than the situation warrants."
         ),
     },
 
     "Catastrophising/Magnification": {
         "explanation": (
-            "You blow a problem out of proportion, imagining the worst possible "
-            "outcome and treating it as likely or inevitable."
+            "You're imagining the worst possible outcome and treating it as though it's likely "
+            "or inevitable. The situation may be genuinely difficult — but your mind is "
+            "magnifying it far beyond what the evidence supports."
         ),
         "technique": "Decatastrophising",
         "challenge": (
-            "What is the realistic best, worst, and most likely outcome here? "
-            "Even if the worst happened, could you cope with it?"
+            "What's the realistic best, worst, and most likely outcome here — honestly? "
+            "If the worst did happen, have you coped with hard things before? "
+            "What does your track record actually say about your ability to handle difficulty?"
         ),
         "reframe": (
-            "Instead of 'This is a disaster and I'll never recover', try: "
-            "'This is difficult and uncomfortable, but I've handled hard things before.'"
-        ),
-    },
-
-    "Emotional Reasoning": {
-        "explanation": (
-            "You treat your feelings as facts. Because you feel something strongly, "
-            "you assume it must be true."
-        ),
-        "technique": "Emotion vs. Fact Check",
-        "challenge": (
-            "What is the evidence for and against this thought, "
-            "separate from how you're feeling right now? "
-            "Feelings are real, but are they accurate information here?"
-        ),
-        "reframe": (
-            "Instead of 'I feel stupid, so I must be stupid', try: "
-            "'I feel embarrassed right now — that's an emotion, not a fact about my intelligence.'"
-        ),
-    },
-
-    "Mind Reading": {
-        "explanation": (
-            "You assume you know what others are thinking, usually concluding "
-            "they are thinking negatively about you — without checking."
-        ),
-        "technique": "Behavioural Experiment",
-        "challenge": (
-            "What actual evidence do you have for what they were thinking? "
-            "Is there another explanation for their behaviour that you haven't considered?"
-        ),
-        "reframe": (
-            "Instead of 'They didn't reply — they must be angry with me', try: "
-            "'I don't know why they haven't replied yet. There could be many reasons.'"
-        ),
-    },
-
-    "Fortune-telling": {
-        "explanation": (
-            "You predict that things will turn out badly and treat "
-            "this prediction as a fact, even before anything has happened."
-        ),
-        "technique": "Probability Estimation",
-        "challenge": (
-            "What is the realistic probability that this will actually happen? "
-            "Have you made similar predictions before that turned out to be wrong?"
-        ),
-        "reframe": (
-            "Instead of 'I know I'm going to fail this', try: "
-            "'I can't know the outcome yet. I'll prepare as well as I can and see.'"
-        ),
-    },
-}
-
-
-# ── Public API ─────────────────────────────────────────────────────────────────
-def get_guidance(label: str) -> dict:
-    """
-    Return the guidance dict for a given distortion label.
-    Raises KeyError if label is not found.
-
-    Keys returned: explanation, technique, challenge, reframe
-    """
-    if label not in _GUIDANCE:
-        raise KeyError(
-            f"No guidance found for label: '{label}'. "
-            f"Valid labels: {list(_GUIDANCE.keys())}"
-        )
-    return _GUIDANCE[label]
-
-
-def all_labels_with_guidance() -> list[str]:
-    """Return all distortion labels that have guidance entries."""
-    return list(_GUIDANCE.keys())
-
-
-# ── Sanity check on import ─────────────────────────────────────────────────────
-_missing = [l for l in DISTORTION_LABELS if l not in _GUIDANCE]
-if _missing:
-    raise RuntimeError(
-        f"guidance.py is missing entries for: {_missing}\n"
-        "Add them to _GUIDANCE before running the API."
-    )
+            "Try grounding it: "
+            "'This is genuinely difficult, and I don't lik

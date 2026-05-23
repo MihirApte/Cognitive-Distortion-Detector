@@ -114,6 +114,7 @@ class GuidanceOut(BaseModel):
     technique:   str
     challenge:   str
     reframe:     str
+    lime_hint:   str
 
 
 class DistortionResult(BaseModel):
@@ -203,6 +204,7 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
             technique=g["technique"],
             challenge=g["challenge"],
             reframe=g["reframe"],
+            lime_hint=g["lime_hint"],
         )
 
         results.append(DistortionResult(
@@ -226,4 +228,4 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
 if __name__ == "__main__":
     import uvicorn
     # Local dev: http://localhost:8000  |  HuggingFace Spaces: port 7860 via Dockerfile
-    uvicorn.run("src.api.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("

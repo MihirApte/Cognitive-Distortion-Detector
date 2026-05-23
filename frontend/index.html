@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cognitive Distortion Detector</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
   <style>
     /* ── Reset & Base ─────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -198,7 +199,7 @@
       box-shadow: var(--shadow);
       padding: 22px 24px;
       margin-bottom: 16px;
-      border-left: 4px solid var(--primary);
+      border-left: 4px solid var(--primary); /* overridden per-card in JS */
       animation: slide-in 0.3s ease both;
     }
 
@@ -215,10 +216,30 @@
       flex-wrap: wrap;
     }
 
+    .card-icon-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-icon {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
     .label-name {
       font-weight: 700;
       font-size: 1rem;
       color: var(--text);
+    }
+
+    .label-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 1px;
     }
 
     .prob-badge {
@@ -277,6 +298,19 @@
 
     .keyword.positive { background: #ebf4ff; color: #2b6cb0; border-color: #bee3f8; }
     .keyword.negative { background: #fff5f5; color: #c53030; border-color: #fed7d7; }
+
+    /* LIME hint */
+    .lime-hint {
+      font-size: 0.81rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      padding: 8px 12px;
+      background: var(--bg);
+      border-radius: 7px;
+      border-left: 2px solid var(--border);
+      margin-top: -8px;
+      margin-bottom: 16px;
+    }
 
     /* Therapy button */
     .therapy-btn {
@@ -462,14 +496,31 @@
 
 <!-- ── Script ──────────────────────────────────────────────────────────────── -->
 <script>
-  // Relative URL - works locally (port 8000) and on HuggingFace Spaces (port 7860)
   const API_URL    = "/analyse";
   const WORD_LIMIT = 150;
+
+  // ── Per-distortion visual metadata ───────────────────────────────────────
+  // accent: left border + icon bg; iconBg/iconColor: chip style; icon: Tabler class
+  const DISTORTION_META = {
+    "All-or-nothing thinking":      { accent: "#D85A30", iconBg: "#FAECE7", iconColor: "#993C1D", icon: "ti-adjustments-horizontal" },
+    "Overgeneralization":           { accent: "#EF9F27", iconBg: "#FAEEDA", iconColor: "#854F0B", icon: "ti-repeat"                 },
+    "Mental filter":                { accent: "#7F77DD", iconBg: "#EEEDFE", iconColor: "#3C3489", icon: "ti-filter"                 },
+    "Should statements":            { accent: "#1D9E75", iconBg: "#E1F5EE", iconColor: "#085041", icon: "ti-list-check"             },
+    "Labeling":                     { accent: "#D4537E", iconBg: "#FBEAF0", iconColor: "#4B1528", icon: "ti-tag"                   },
+    "Personalization":              { accent: "#378ADD", iconBg: "#E6F1FB", iconColor: "#0C447C", icon: "ti-user-exclamation"      },
+    "Catastrophising/Magnification":{ accent: "#E24B4A", iconBg: "#FCEBEB", iconColor: "#501313", icon: "ti-alert-triangle"        },
+    "Emotional Reasoning":          { accent: "#5DCAA5", iconBg: "#E1F5EE", iconColor: "#085041", icon: "ti-mood-sad"              },
+    "Mind Reading":                 { accent: "#534AB7", iconBg: "#EEEDFE", iconColor: "#26215C", icon: "ti-brain"                 },
+    "Fortune-telling":              { accent: "#185FA5", iconBg: "#B5D4F4", iconColor: "#042C53", icon: "ti-clock"                 },
+  };
+
+  function getMeta(label) {
+    return DISTORTION_META[label] || { accent: "#4a6fa5", iconBg: "#e8f0fe", iconColor: "#3a5a8a", icon: "ti-help" };
+  }
 
   // ── Word counter ─────────────────────────────────────────────────────────
   const textarea    = document.getElementById("user-input");
   const wordCounter = document.getElementById("word-counter");
-
   textarea.addEventListener("input", updateCounter);
 
   function countWords(text) {
@@ -486,188 +537,94 @@
   // ── Analysis ─────────────────────────────────────────────────────────────
   async function runAnalysis() {
     const text = textarea.value.trim();
-
-    // Clear previous state
     hide("results-section");
     hide("no-result-msg");
     hide("error-msg");
 
-    if (!text) {
-      showError("Please enter some text before analysing.");
-      return;
-    }
-
+    if (!text) { showError("Please enter some text before analysing."); return; }
     if (countWords(text) > WORD_LIMIT) {
       showError(`Your text exceeds the ${WORD_LIMIT}-word limit. Please shorten it.`);
       return;
     }
 
     setLoading(true);
-
     try {
-      const res = await fetch(API_URL, {
+      const res  = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
-        const msg = data?.detail?.[0]?.msg || data?.detail || "Something went wrong.";
-        showError(msg);
+        showError(data?.detail?.[0]?.msg || data?.detail || "Something went wrong.");
         return;
       }
-
       renderResults(data);
-
     } catch (err) {
-      showError("Cannot reach the API. Make sure the backend is running on port 8000.");
+      showError("Cannot reach the API. Make sure the backend is running.");
     } finally {
       setLoading(false);
     }
   }
 
   // ── Render results ────────────────────────────────────────────────────────
-  function renderResults(data) {
-    const { detected, word_count } = data;
-
-    if (!detected || detected.length === 0) {
-      show("no-result-msg");
-      return;
-    }
-
-    document.getElementById("results-header").textContent =
-      `${detected.length} distortion${detected.length > 1 ? "s" : ""} detected`;
-
-    const container = document.getElementById("cards-container");
-    container.innerHTML = "";
-
-    detected.forEach((item, i) => {
-      const card = buildCard(item, i);
-      container.appendChild(card);
-    });
-
-    show("results-section");
-  }
-
-  function buildCard(item, index) {
-    const pct = Math.round(item.probability * 100);
-
-    // Colour tier
-    let probClass = "prob-low";
-    if (pct >= 70)      probClass = "prob-high";
-    else if (pct >= 40) probClass = "prob-medium";
-
-    // Keywords
-    const keywordsHTML = item.top_words.map(w => {
-      const cls = w.weight >= 0 ? "positive" : "negative";
-      return `<span class="keyword ${cls}">${escHtml(w.word)}</span>`;
-    }).join("");
-
-    const card = document.createElement("div");
-    card.className = "distortion-card";
-    card.style.animationDelay = `${index * 0.07}s`;
-
-    card.innerHTML = `
-      <div class="card-top">
-        <span class="label-name">${escHtml(item.label)}</span>
-        <span class="prob-badge ${probClass}">${pct}% confidence</span>
-      </div>
-
-      <div class="prob-bar-wrap">
-        <div class="prob-bar-fill" style="width: ${pct}%"></div>
-      </div>
-
-      <div class="section-label">Key words driving this prediction</div>
-      <div class="keywords">${keywordsHTML || "<em style='color:#aaa;font-size:0.85rem'>No keywords available</em>"}</div>
-
-      <button class="therapy-btn" onclick="openModal(${index})">
-        💬 Therapy guidance
-      </button>
-    `;
-
-    // Attach guidance data directly to the card element for the modal
-    card._guidance = item.guidance;
-    card._label    = item.label;
-
-    return card;
-  }
-
-  // ── Modal ─────────────────────────────────────────────────────────────────
-  // Store guidance for all current results so modal can access them
   let _currentResults = [];
 
   function renderResults(data) {
-    const { detected } = data;
-    _currentResults = detected || [];
+    _currentResults = data.detected || [];
 
-    if (_currentResults.length === 0) {
-      show("no-result-msg");
-      return;
-    }
+    if (_currentResults.length === 0) { show("no-result-msg"); return; }
 
     document.getElementById("results-header").textContent =
       `${_currentResults.length} distortion${_currentResults.length > 1 ? "s" : ""} detected`;
 
     const container = document.getElementById("cards-container");
     container.innerHTML = "";
-
-    _currentResults.forEach((item, i) => {
-      container.appendChild(buildCard(item, i));
-    });
-
+    _currentResults.forEach((item, i) => container.appendChild(buildCard(item, i)));
     show("results-section");
   }
 
-  function openModal(index) {
-    const item = _currentResults[index];
-    if (!item) return;
+  function buildCard(item, index) {
+    const pct  = Math.round(item.probability * 100);
+    const meta = getMeta(item.label);
 
-    const g = item.guidance;
+    let probClass = pct >= 70 ? "prob-high" : pct >= 40 ? "prob-medium" : "prob-low";
 
-    document.getElementById("modal-title").textContent = item.label;
-    document.getElementById("modal-subtitle").textContent =
-      `CBT technique: ${g.technique}`;
+    const keywordsHTML = item.top_words.length
+      ? item.top_words.map(w =>
+          `<span class="keyword ${w.weight >= 0 ? "positive" : "negative"}">${escHtml(w.word)}</span>`
+        ).join("")
+      : "<em style='color:#aaa;font-size:0.85rem'>No keywords available</em>";
 
-    document.getElementById("modal-body").innerHTML = `
-      <div class="guidance-block">
-        <div class="guidance-tag">What is this distortion?</div>
-        <div class="guidance-text">${escHtml(g.explanation)}</div>
+    const limeHint = item.guidance?.lime_hint
+      ? `<div class="lime-hint">${escHtml(item.guidance.lime_hint)}</div>`
+      : "";
+
+    const card = document.createElement("div");
+    card.className = "distortion-card";
+    card.style.cssText = `animation-delay:${index * 0.07}s; border-left-color:${meta.accent};`;
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-icon-wrap">
+          <div class="card-icon" style="background:${meta.iconBg}; color:${meta.iconColor};">
+            <i class="ti ${meta.icon}" aria-hidden="true"></i>
+          </div>
+          <div>
+            <div class="label-name">${escHtml(item.label)}</div>
+            <div class="label-sub">Cognitive distortion</div>
+          </div>
+        </div>
+        <span class="prob-badge ${probClass}">${pct}% confidence</span>
       </div>
-      <div class="guidance-block">
-        <div class="guidance-tag">Challenge your thought</div>
-        <div class="guidance-text">${escHtml(g.challenge)}</div>
+
+      <div class="prob-bar-wrap">
+        <div class="prob-bar-fill" style="width:${pct}%; background:${meta.accent};"></div>
       </div>
-      <div class="guidance-block">
-        <div class="guidance-tag">Reframe it</div>
-        <div class="guidance-text">${escHtml(g.reframe)}</div>
-      </div>
-    `;
 
-    document.getElementById("modal-backdrop").classList.add("open");
-    document.body.style.overflow = "hidden";
-  }
+      <div class="section-label">Key words driving this prediction</div>
+      <div class="keywords">${keywordsHTML}</div>
+      ${limeHint}
 
-  function closeModal(event) {
-    // Close only if clicking the backdrop itself, not the modal
-    if (event.target === document.getElementById("modal-backdrop")) {
-      closeModalDirect();
-    }
-  }
-
-  function closeModalDirect() {
-    document.getElementById("modal-backdrop").classList.remove("open");
-    document.body.style.overflow = "";
-  }
-
-  // Close on Escape key
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape") closeModalDirect();
-  });
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function setLoading(on) {
-    const btn     = document.getElementById("analyse-btn");
-    const spinner = document.getElementById("spinner");
-    const label   = document.getElementById("btn-l
+      <button class="therapy-btn" style="border-color:${meta.accent}; color:${meta.accent};"
+          
