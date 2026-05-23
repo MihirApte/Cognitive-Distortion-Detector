@@ -405,16 +405,25 @@
 
     /* ── Footer ───────────────────────────────────────────────────────── */
     footer {
-      text-align: center;
-      font-size: 0.78rem;
-      color: var(--text-muted);
       margin-top: 48px;
       max-width: 720px;
       margin-left: auto;
       margin-right: auto;
       line-height: 1.6;
     }
-    footer strong { color: var(--text); }
+    .footer-disclaimer {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text);
+    }
+    .footer-note {
+      text-align: right;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
@@ -468,13 +477,10 @@
   </div>
 
   <footer>
-    <p>This tool is for educational purposes only and does not constitute medical or psychological advice.</p>
-    <p style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
-      ⚠️ <strong>Phase 1 — Work in Progress.</strong>
-      Currently powered by a fine-tuned <strong>DistilBERT</strong> model (Macro F1: 0.23).
-      Performance is limited by training data quality — false positives and label confusion can occur.
-      <strong>Phase 2</strong> is in development: DeBERTa-v3-base + Focal Loss + improved training data.
-      Testing and iteration ongoing.
+    <p class="footer-disclaimer">This tool is for educational purposes only and does not constitute medical or psychological advice.</p>
+    <p class="footer-note">
+      Note: 1) Phase 1 - Currently powered by a fine-tuned DistilBERT model (Macro F1: 0.23). Performance is limited by training data quality hence false positives and label confusion can occur.
+      &nbsp; 2) Phase 2 (in development): DeBERTa-v3-base + Focal Loss + improved training data. Testing and iteration ongoing.
     </p>
   </footer>
 
