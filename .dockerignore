@@ -1,0 +1,31 @@
+# ── .dockerignore ──────────────────────────────────────────────────────────────
+# Files excluded from the Docker build context sent to HF Spaces.
+# These stay in git for portfolio/reference but are NOT needed inside the container.
+# Keeps the image lean and build times fast.
+
+# Training notebooks (large — 04_lime_explanations.ipynb alone is ~400k lines)
+notebooks/
+
+# Training data (model is already trained; data only needed for retraining)
+data/
+
+# Evaluation outputs and LIME HTML files
+results/
+
+# Python virtual environment
+venv/
+
+# Git internals
+.git/
+.gitattributes
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docs
+linkedin_post.md
+README.md

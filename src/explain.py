@@ -11,8 +11,8 @@ Usage:
     python -m src.explain
 
 Outputs saved to: results/lime_explanations/
-  - {idx}_{label_short}.html   — LIME HTML plot per (example, label)
-  - lime_word_importance.csv   — top-5 words per label aggregated across examples
+  - {idx}_{label_short}.html   - LIME HTML plot per (example, label)
+  - lime_word_importance.csv   - top-5 words per label aggregated across examples
 """
 
 import os
@@ -36,10 +36,10 @@ MODEL_PATH   = DISTILBERT_MODEL_DIR   # models/distilbert_cognitive_distortion
 LIME_DIR     = os.path.join(RESULTS_DIR, "lime_explanations")
 MAX_LEN      = 128
 THRESHOLD    = 0.40
-NUM_SAMPLES  = 500   # LIME perturbation samples — 500 is fast & stable enough
+NUM_SAMPLES  = 500   # LIME perturbation samples - 500 is fast & stable enough
 NUM_FEATURES = 10    # top N words shown per explanation
 
-# Short names — must match evaluate.py's column naming convention exactly
+# Short names - must match evaluate.py's column naming convention exactly
 SHORT = [
     l.replace("/", "_").replace(" ", "_").replace("-", "_")
     for l in DISTORTION_LABELS
@@ -76,7 +76,7 @@ class Explainer:
         self.model.eval()
         print(f"Model loaded on {self.device}")
 
-        # LimeTextExplainer — class_names used for display only
+        # LimeTextExplainer - class_names used for display only
         self.lime_exp = LimeTextExplainer(
             class_names=DISTORTION_LABELS,
             random_state=42,
@@ -238,7 +238,7 @@ def _pick_examples(pred_df: pd.DataFrame) -> list[dict]:
         for i, l in enumerate(DISTORTION_LABELS)
     }
 
-    # 1 clear TP per label — highest prob where pred=1 and true=1
+    # 1 clear TP per label - highest prob where pred=1 and true=1
     for i, label in enumerate(DISTORTION_LABELS):
         short   = SHORT[i]
         prob_col = f"prob_{short}"
@@ -263,7 +263,7 @@ def _pick_examples(pred_df: pd.DataFrame) -> list[dict]:
             })
             seen_rows.add(row_idx)
 
-    # 2 hard FP — predicted positive but actually negative, highest prob
+    # 2 hard FP - predicted positive but actually negative, highest prob
     fp_candidates = []
     for i, label in enumerate(DISTORTION_LABELS):
         short    = SHORT[i]
@@ -290,7 +290,7 @@ def _pick_examples(pred_df: pd.DataFrame) -> list[dict]:
             })
             seen_rows.add(row_idx)
 
-    # 1 multi-label example — highest number of predicted positives
+    # 1 multi-label example - highest number of predicted positives
     prob_cols = [f"prob_{s}" for s in SHORT if f"prob_{s}" in pred_df.columns]
     pred_cols = [f"pred_{s}" for s in SHORT if f"pred_{s}" in pred_df.columns]
     n_preds   = pred_df[pred_cols].sum(axis=1)
@@ -384,4 +384,8 @@ def run():
             continue
         words = ", ".join(sub["word"].tolist())
         print(f"  {label:<35} → {words}")
-  
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    run()

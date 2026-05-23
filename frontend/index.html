@@ -627,4 +627,79 @@
       ${limeHint}
 
       <button class="therapy-btn" style="border-color:${meta.accent}; color:${meta.accent};"
-          
+              onmouseover="this.style.background='${meta.accent}';this.style.color='white';"
+              onmouseout="this.style.background='none';this.style.color='${meta.accent}';"
+              onclick="openModal(${index})">
+        <i class="ti ti-heart" aria-hidden="true"></i> Therapy guidance
+      </button>
+    `;
+
+    return card;
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+  function openModal(index) {
+    const item = _currentResults[index];
+    if (!item) return;
+
+    const g    = item.guidance;
+    const meta = getMeta(item.label);
+
+    document.getElementById("modal-title").textContent    = item.label;
+    document.getElementById("modal-subtitle").textContent = `CBT technique: ${g.technique}`;
+
+    document.getElementById("modal-body").innerHTML = `
+      <div class="guidance-block">
+        <div class="guidance-tag" style="color:${meta.accent};">What is this distortion?</div>
+        <div class="guidance-text">${escHtml(g.explanation)}</div>
+      </div>
+      <div class="guidance-block">
+        <div class="guidance-tag" style="color:${meta.accent};">Challenge your thought</div>
+        <div class="guidance-text">${escHtml(g.challenge)}</div>
+      </div>
+      <div class="guidance-block">
+        <div class="guidance-tag" style="color:${meta.accent};">Reframe it</div>
+        <div class="guidance-text">${escHtml(g.reframe)}</div>
+      </div>
+    `;
+
+    document.getElementById("modal-backdrop").classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal(event) {
+    if (event.target === document.getElementById("modal-backdrop")) closeModalDirect();
+  }
+
+  function closeModalDirect() {
+    document.getElementById("modal-backdrop").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeModalDirect(); });
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function setLoading(on) {
+    const btn = document.getElementById("analyse-btn");
+    document.getElementById("spinner").style.display = on ? "block" : "none";
+    document.getElementById("btn-label").textContent = on ? "Analysing…" : "Analyse";
+    btn.disabled = on;
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("error-msg");
+    el.textContent = msg;
+    show("error-msg");
+  }
+
+  function show(id) { document.getElementById(id).style.display = "block"; }
+  function hide(id) { document.getElementById(id).style.display = "none"; }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+</script>
+</body>
+</html>

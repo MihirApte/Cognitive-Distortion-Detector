@@ -21,7 +21,7 @@ Type a thought or sentence (up to 150 words). The app:
 
 1. Runs it through a fine-tuned DistilBERT model to detect which of 10 cognitive distortions are present
 2. Uses LIME to highlight which words drove each prediction
-3. Shows a CBT-grounded therapy response for each detected distortion — what the distortion is, a relevant technique, a Socratic challenge question, and a suggested reframe
+3. Shows a CBT-grounded therapy response for each detected distortion - what the distortion is, a relevant technique, a Socratic challenge question, and a suggested reframe
 
 ---
 
@@ -42,7 +42,7 @@ Type a thought or sentence (up to 150 words). The app:
 
 ---
 
-## ⚠️ Phase 1 — Work in Progress
+## ⚠️ Phase 1 - Work in Progress
 
 This is **Phase 1** of an ongoing project. The deployed model is functional but performance is limited by training data quality. False positives and label confusion can occur. A clear "Work in Progress" notice is shown in the app.
 
@@ -75,7 +75,7 @@ This is **Phase 1** of an ongoing project. The deployed model is functional but 
 | Mind Reading | 0.264 |
 | Fortune-telling | 0.210 |
 
-**On the scores:** These are modest in absolute terms, and that's expected. The dataset (2,530 examples, 10 overlapping labels, sourced from therapist Q&A) is small, imbalanced, and inherently noisy — even human annotators disagree on many examples. The root cause of current limitations is template-based synthetic data using shared vocabulary across distortion classes. This is the primary target for Phase 2. Full error analysis is in `notebooks/03_error_analysis.ipynb`.
+**On the scores:** These are modest in absolute terms, and that's expected. The dataset (2,530 examples, 10 overlapping labels, sourced from therapist Q&A) is small, imbalanced, and inherently noisy - even human annotators disagree on many examples. The root cause of current limitations is template-based synthetic data using shared vocabulary across distortion classes. This is the primary target for Phase 2. Full error analysis is in `notebooks/03_error_analysis.ipynb`.
 
 ---
 
@@ -116,7 +116,7 @@ FastAPI /analyse endpoint
 
 [danthareja/cognitive-distortion](https://huggingface.co/datasets/danthareja/cognitive-distortion)
 
-2,530 annotated patient questions from a therapist Q&A platform. Pre-split: 2,020 train / 506 test. Multi-label — one question can exhibit multiple distortions simultaneously.
+2,530 annotated patient questions from a therapist Q&A platform. Pre-split: 2,020 train / 506 test. Multi-label - one question can exhibit multiple distortions simultaneously.
 
 Original source: Shreevastava & Foltz (2021), *Detecting Cognitive Distortions from Patient-Therapist Interactions*.
 
@@ -187,4 +187,15 @@ docker run -p 7860:7860 cdd-app
 # Open: http://localhost:7860
 ```
 
-**Note on latency:** LIME runs ~300 perturbations through DistilBERT on CPU per detected label. Expect 10–20 s
+**Note on latency:** LIME runs ~300 perturbations through DistilBERT on CPU per detected label. Expect 10–20 seconds per request on the free HuggingFace Spaces tier. This is a known trade-off of running LIME on CPU.
+
+---
+
+## Notebooks
+
+| Notebook | Contents |
+|----------|----------|
+| `01_eda.ipynb` | Label distribution, class imbalance, text length analysis |
+| `02_training.ipynb` | DistilBERT fine-tuning on Colab T4, training curves |
+| `03_error_analysis.ipynb` | Per-label F1, confusion patterns, failure cases |
+| `04_lime_explanations.ipynb` | LIME word importance visualisations per distortion |

@@ -36,4 +36,26 @@ models/roberta_cognitive_distortion/
 # Phase 2 test/dev scripts — not part of Phase 1
 test_roberta.py
 
-# Resu
+# Expert annotation forms (planning artifacts, not part of deployment)
+forms/
+
+# Results / outputs
+results/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

@@ -4,9 +4,9 @@ src/api/main.py
 FastAPI backend for the Cognitive Distortion Detector.
 
 Endpoints:
-  GET  /          — serve the frontend (index.html)
-  POST /analyse   — run inference + LIME + guidance on user text
-  GET  /health    — quick liveness check
+  GET  /          - serve the frontend (index.html)
+  POST /analyse   - run inference + LIME + guidance on user text
+  GET  /health    - quick liveness check
 
 Usage (from project root):
     uvicorn src.api.main:app --reload --port 8000
@@ -32,7 +32,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, field_validator
 
-# Resolve frontend path relative to this file — works from any working directory
+# Resolve frontend path relative to this file - works from any working directory
 _FRONTEND = Path(__file__).parent.parent.parent / "frontend" / "index.html"
 
 from src.explain import Explainer
@@ -43,10 +43,10 @@ from src.config import DISTORTION_LABELS
 WORD_LIMIT   = 150
 THRESHOLD    = 0.40    # label predicted positive if prob >= this
 NUM_FEATURES = 6       # top LIME words per label
-NUM_SAMPLES  = 300     # LIME perturbations — reduced for API latency
+NUM_SAMPLES  = 300     # LIME perturbations - reduced for API latency
 
 # Single-char tokens and subword artifacts to strip from LIME keyword output
-# (DistilBERT tokenises "I'm" → ["I", "m"] — "m" is meaningless as a keyword)
+# (DistilBERT tokenises "I'm" → ["I", "m"] - "m" is meaningless as a keyword)
 _NOISE_TOKENS = {
     "m", "s", "t", "re", "ve", "ll", "d",       # subword artifacts from I'm, it's, etc.
     "and", "the", "a", "an", "of", "to", "in",  # stopwords that carry no distortion signal
@@ -170,7 +170,7 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
     detected_indices = [i for i, p in enumerate(probs) if p >= THRESHOLD]
 
     if not detected_indices:
-        # Return empty detected list — no distortions above threshold
+        # Return empty detected list - no distortions above threshold
         return AnalyseResponse(
             detected=[],
             word_count=word_count,
@@ -228,4 +228,4 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
 if __name__ == "__main__":
     import uvicorn
     # Local dev: http://localhost:8000  |  HuggingFace Spaces: port 7860 via Dockerfile
-    uvicorn.run("
+    uvicorn.run("src.api.main:app", host="0.0.0.0", port=8000, reload=True)
