@@ -417,12 +417,17 @@
       color: var(--text);
     }
     .footer-note {
-      text-align: right;
-      font-size: 0.75rem;
+      position: fixed;
+      bottom: 1.2rem;
+      right: 1.5rem;
+      max-width: 320px;
+      font-size: 0.72rem;
       color: var(--text-muted);
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
+      line-height: 1.55;
+      text-align: left;
+    }
+    .footer-note .note-label {
+      color: var(--text);
     }
   </style>
 </head>
@@ -478,13 +483,15 @@
 
   <footer>
     <p class="footer-disclaimer">This tool is for educational purposes only and does not constitute medical or psychological advice.</p>
-    <p class="footer-note">
-      Note: 1) Phase 1 - Currently powered by a fine-tuned DistilBERT model (Macro F1: 0.23). Performance is limited by training data quality hence false positives and label confusion can occur.
-      &nbsp; 2) Phase 2 (in development): DeBERTa-v3-base + Focal Loss + improved training data. Testing and iteration ongoing.
-    </p>
   </footer>
 
 </main>
+
+<div class="footer-note">
+  <span class="note-label">Note:</span><br>
+  1) Phase 1 - Currently powered by a fine-tuned DistilBERT model (Macro F1: 0.23). Performance is limited by training data quality hence false positives and label confusion can occur.<br>
+  2) Phase 2 (in development): DeBERTa-v3-base + Focal Loss + improved training data. Testing and iteration ongoing.
+</div>
 
 <!-- ── Therapy Modal ───────────────────────────────────────────────────────── -->
 <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
