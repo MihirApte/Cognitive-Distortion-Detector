@@ -5,14 +5,20 @@ FastAPI backend for the Cognitive Distortion Detector.
 
 Endpoints:
   GET  /          - serve the frontend (index.html)
-  POST /analyse   - run inference + LIME + guidance on user text
+  POST /analyse   - run inference + LIME + guidance + safety on user text
   GET  /health    - quick liveness check
+
+Safety pipeline (runs before any inference):
+  1. check_crisis()  - routes crisis text to a fixed safe message (never LLM)
+  2. check_misuse()  - blocks therapy/advice extraction attempts
+  3. DistilBERT inference + LIME + optional LLM explanation
 
 Usage (from project root):
     uvicorn src.api.main:app --reload --port 8000
     # then open http://localhost:8000
 
-The DistilBERT model and LIME explainer are loaded once at startup.
+LLM explanations are enabled when GROQ_API_KEY env variable is set.
+If absent, the LLM explanation field is omitted gracefully.
 """
 
 from __future__ import annotations
@@ -38,9 +44,10 @@ _FRONTEND = Path(__file__).parent.parent.parent / "frontend" / "index.html"
 from src.explain import Explainer
 from src.guidance import get_guidance
 from src.config import DISTORTION_LABELS
+from src.safety import check_crisis, check_misuse, SAFE_RESPONSE, MISUSE_RESPONSE, DISCLAIMER
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-WORD_LIMIT   = 150
+WORD_LIMIT   = 200
 THRESHOLD    = 0.40    # label predicted positive if prob >= this
 NUM_FEATURES = 6       # top LIME words per label
 NUM_SAMPLES  = 300     # LIME perturbations - reduced for API latency
@@ -53,19 +60,34 @@ _NOISE_TOKENS = {
     "is", "it", "be", "or", "at", "by", "but",
 }
 
-# ── Global model (loaded once at startup) ─────────────────────────────────────
+# ── Global model and optional LLM explainer ───────────────────────────────────
 _explainer: Explainer | None = None
+_llm_explainer = None   # loaded only if GROQ_API_KEY is set
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model on startup, release on shutdown."""
-    global _explainer
-    print("Loading DistilBERT model …")
+    global _explainer, _llm_explainer
+    print("Loading DistilBERT model ...")
     _explainer = Explainer()
     print("Model ready.")
+
+    # LLM explainer is optional - only loaded when API key is present
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if groq_key:
+        try:
+            from src.llm_explainer import LLMExplainer
+            _llm_explainer = LLMExplainer(api_key=groq_key)
+            print("LLM explainer ready (Groq).")
+        except Exception as e:
+            print(f"LLM explainer not loaded: {e}")
+    else:
+        print("GROQ_API_KEY not set - LLM explanations disabled.")
+
     yield
     _explainer = None
+    _llm_explainer = None
     print("Model released.")
 
 
@@ -118,16 +140,23 @@ class GuidanceOut(BaseModel):
 
 
 class DistortionResult(BaseModel):
-    label:       str
-    probability: float          # 0.0 – 1.0
-    top_words:   list[WordWeight]
-    guidance:    GuidanceOut
+    label:            str
+    probability:      float          # 0.0 - 1.0
+    top_words:        list[WordWeight]
+    guidance:         GuidanceOut
+    llm_explanation:  str | None = None   # grounded explanation from LLM (None if disabled)
+    llm_verified:     bool | None = None  # True if no hallucinated citations
 
 
 class AnalyseResponse(BaseModel):
-    detected:    list[DistortionResult]   # only labels above threshold
-    word_count:  int
-    threshold:   float
+    detected:         list[DistortionResult]   # only labels above threshold
+    word_count:       int
+    threshold:        float
+    is_crisis:        bool = False
+    crisis_message:   str | None = None
+    is_misuse:        bool = False
+    misuse_message:   str | None = None
+    disclaimer:       str = DISCLAIMER
 
 
 class HealthResponse(BaseModel):
@@ -153,16 +182,42 @@ def health():
 @app.post("/analyse", response_model=AnalyseResponse)
 def analyse(req: AnalyseRequest) -> AnalyseResponse:
     """
-    Three-step pipeline:
-      1. DistilBERT inference  → probabilities for all 10 labels
-      2. LIME                  → top keywords per detected label
-      3. Guidance lookup       → CBT technique + Socratic question + reframe
+    Five-step pipeline:
+      0. Safety checks         - crisis routing + misuse detection (before any inference)
+      1. DistilBERT inference  - probabilities for all 10 labels
+      2. LIME                  - top keywords per detected label
+      3. Guidance lookup       - CBT technique + Socratic question + reframe
+      4. LLM explanation       - optional grounded plain-English explanation (Groq)
     """
     if _explainer is None:
         raise HTTPException(status_code=503, detail="Model not loaded yet. Try again shortly.")
 
     text = req.text
     word_count = len(text.split())
+
+    # ── Step 0a: Crisis check (always runs first, always returns fixed message) ──
+    crisis_result = check_crisis(text)
+    if crisis_result["is_crisis"]:
+        return AnalyseResponse(
+            detected=[],
+            word_count=word_count,
+            threshold=THRESHOLD,
+            is_crisis=True,
+            crisis_message=SAFE_RESPONSE["message"],
+            disclaimer=DISCLAIMER,
+        )
+
+    # ── Step 0b: Misuse / jailbreak check ─────────────────────────────────────
+    misuse_result = check_misuse(text)
+    if misuse_result["is_misuse"]:
+        return AnalyseResponse(
+            detected=[],
+            word_count=word_count,
+            threshold=THRESHOLD,
+            is_misuse=True,
+            misuse_message=MISUSE_RESPONSE["message"],
+            disclaimer=DISCLAIMER,
+        )
 
     # ── Step 1: Inference ──────────────────────────────────────────────────────
     probs = _explainer.predict_proba([text])[0]   # shape (10,)
@@ -177,7 +232,7 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
             threshold=THRESHOLD,
         )
 
-    # ── Steps 2 & 3: LIME + Guidance per detected label ───────────────────────
+    # ── Steps 2, 3 & 4: LIME + Guidance + LLM explanation per detected label ───
     results: list[DistortionResult] = []
 
     for idx in detected_indices:
@@ -196,6 +251,7 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
             for w, wt in lime_result["top_words"]
             if len(w) > 1 and w.lower() not in _NOISE_TOKENS
         ]
+        lime_word_list = [ww.word for ww in top_words]
 
         # Guidance lookup
         g = get_guidance(label)
@@ -207,11 +263,28 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
             lime_hint=g["lime_hint"],
         )
 
+        # LLM explanation (optional - skipped if no API key)
+        llm_explanation = None
+        llm_verified = None
+        if _llm_explainer is not None and lime_word_list:
+            try:
+                llm_result = _llm_explainer.explain(
+                    text=text,
+                    label=label,
+                    lime_words=lime_word_list,
+                )
+                llm_explanation = llm_result["explanation"]
+                llm_verified    = llm_result["verified"]
+            except Exception:
+                pass   # LLM failure is non-fatal; classifier result still returned
+
         results.append(DistortionResult(
             label=label,
             probability=round(prob, 4),
             top_words=top_words,
             guidance=guidance,
+            llm_explanation=llm_explanation,
+            llm_verified=llm_verified,
         ))
 
     # Sort by probability descending
@@ -221,6 +294,7 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
         detected=results,
         word_count=word_count,
         threshold=THRESHOLD,
+        disclaimer=DISCLAIMER,
     )
 
 

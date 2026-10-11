@@ -448,7 +448,7 @@
   <!-- Input card -->
   <div class="input-card">
     <label for="user-input">
-      Describe your thoughts &nbsp;<span>(max 150 words)</span>
+      Describe your thoughts
     </label>
     <textarea
       id="user-input"
@@ -456,7 +456,7 @@
       spellcheck="true"
     ></textarea>
     <div class="input-meta">
-      <span id="word-counter">0 / 150 words</span>
+      <span id="word-counter">0 / 200 words</span>
       <button id="analyse-btn" onclick="runAnalysis()">
         <span class="spinner" id="spinner"></span>
         <span id="btn-label">Analyse</span>
@@ -510,7 +510,7 @@
 <!-- ── Script ──────────────────────────────────────────────────────────────── -->
 <script>
   const API_URL    = "/analyse";
-  const WORD_LIMIT = 150;
+  const WORD_LIMIT = 200;
 
   // ── Per-distortion visual metadata ───────────────────────────────────────
   // accent: left border + icon bg; iconBg/iconColor: chip style; icon: Tabler class
@@ -586,14 +586,60 @@
   function renderResults(data) {
     _currentResults = data.detected || [];
 
+    // Crisis response - show fixed safe message, never analyse further
+    if (data.is_crisis) {
+      const container = document.getElementById("cards-container");
+      container.innerHTML = `
+        <div style="background:#fff5f5;border:1.5px solid #fc8181;border-radius:12px;padding:20px 24px;color:#742a2a;line-height:1.7;">
+          <strong style="font-size:1rem;">Please reach out for support</strong>
+          <p style="margin:10px 0 0;font-size:0.9rem;white-space:pre-line;">${escHtml(data.crisis_message)}</p>
+        </div>`;
+      show("results-section");
+      return;
+    }
+
+    // Misuse / jailbreak response
+    if (data.is_misuse) {
+      const container = document.getElementById("cards-container");
+      container.innerHTML = `
+        <div style="background:#fffaf0;border:1.5px solid #ed8936;border-radius:12px;padding:20px 24px;color:#7b341e;line-height:1.7;">
+          <strong style="font-size:1rem;">This tool cannot help with that</strong>
+          <p style="margin:10px 0 0;font-size:0.9rem;">${escHtml(data.misuse_message)}</p>
+        </div>`;
+      show("results-section");
+      return;
+    }
+
     if (_currentResults.length === 0) { show("no-result-msg"); return; }
 
+    const total = _currentResults.length;
+    const SHOW_INITIAL = 4;
+
     document.getElementById("results-header").textContent =
-      `${_currentResults.length} distortion${_currentResults.length > 1 ? "s" : ""} detected`;
+      `${total} distortion${total > 1 ? "s" : ""} detected`;
 
     const container = document.getElementById("cards-container");
     container.innerHTML = "";
-    _currentResults.forEach((item, i) => container.appendChild(buildCard(item, i)));
+
+    // Show top 4 immediately
+    _currentResults.slice(0, SHOW_INITIAL).forEach((item, i) => container.appendChild(buildCard(item, i)));
+
+    // If more than 4, add a "Show more" button
+    if (total > SHOW_INITIAL) {
+      const remaining = total - SHOW_INITIAL;
+      const showMoreBtn = document.createElement("button");
+      showMoreBtn.className = "therapy-btn";
+      showMoreBtn.style.cssText = "margin:8px auto;display:block;border-color:var(--text-muted);color:var(--text-muted);font-size:0.82rem;";
+      showMoreBtn.textContent = `Show ${remaining} more distortion${remaining > 1 ? "s" : ""}`;
+      showMoreBtn.onclick = () => {
+        showMoreBtn.remove();
+        _currentResults.slice(SHOW_INITIAL).forEach((item, i) =>
+          container.appendChild(buildCard(item, SHOW_INITIAL + i))
+        );
+      };
+      container.appendChild(showMoreBtn);
+    }
+
     show("results-section");
   }
 
@@ -611,6 +657,19 @@
 
     const limeHint = item.guidance?.lime_hint
       ? `<div class="lime-hint">${escHtml(item.guidance.lime_hint)}</div>`
+      : "";
+
+    const verifiedIcon = item.llm_verified === true
+      ? `<span style="color:#38a169;font-size:0.7rem;margin-left:6px;" title="All cited words verified against model weights">verified</span>`
+      : item.llm_verified === false
+      ? `<span style="color:#d69e2e;font-size:0.7rem;margin-left:6px;" title="Some cited words not in LIME top words">unverified</span>`
+      : "";
+
+    const llmExplanation = item.llm_explanation
+      ? `<div class="lime-hint" style="border-left-color:${meta.accent};margin-top:8px;">
+           <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:${meta.accent};">Why this was detected${verifiedIcon}</span>
+           <p style="margin:4px 0 0;font-size:0.82rem;">${escHtml(item.llm_explanation)}</p>
+         </div>`
       : "";
 
     const card = document.createElement("div");
@@ -638,6 +697,7 @@
       <div class="section-label">Key words driving this prediction</div>
       <div class="keywords">${keywordsHTML}</div>
       ${limeHint}
+      ${llmExplanation}
 
       <button class="therapy-btn" style="border-color:${meta.accent}; color:${meta.accent};"
               onmouseover="this.style.background='${meta.accent}';this.style.color='white';"

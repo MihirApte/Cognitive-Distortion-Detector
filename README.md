@@ -199,3 +199,51 @@ docker run -p 7860:7860 cdd-app
 | `02_training.ipynb` | DistilBERT fine-tuning on Colab T4, training curves |
 | `03_error_analysis.ipynb` | Per-label F1, confusion patterns, failure cases |
 | `04_lime_explanations.ipynb` | LIME word importance visualisations per distortion |
+
+---
+
+<!-- RESULTS_TABLE_START -->
+## Model Comparison Results
+
+> DistilBERT evaluated on full 506-row held-out test set. LLM baselines (qwen3.8-27b) evaluated on 50 examples. All F1 scores are macro-averaged per label.
+
+### Per-Label F1 Score
+
+| Distortion | DistilBERT (fine-tuned) | LLM Zero-shot | LLM Few-shot | Winner |
+|---|:---:|:---:|:---:|:---:|
+| All-or-nothing thinking | 0.182 | 0.000 | 0.000 | DistilBERT |
+| Overgeneralization | 0.267 | 0.105 | 0.154 | DistilBERT |
+| Mental filter | 0.173 | 0.286 | 0.667 | LLM few-shot |
+| Should statements | 0.188 | 0.333 | 0.000 | LLM zero-shot |
+| Labeling | 0.304 | 0.500 | 0.889 | LLM few-shot |
+| Personalization | 0.185 | 0.500 | 0.500 | LLM few-shot |
+| Catastrophising/Magnification | 0.279 | 0.133 | 0.000 | DistilBERT |
+| Emotional Reasoning | 0.241 | 0.000 | 0.000 | DistilBERT |
+| Mind Reading | 0.264 | 0.250 | 0.182 | DistilBERT |
+| Fortune-telling | 0.210 | 0.000 | 0.000 | DistilBERT |
+
+### Overall Metrics
+
+| Metric | DistilBERT (fine-tuned) | LLM Zero-shot | LLM Few-shot |
+|---|:---:|:---:|:---:|
+| Macro F1 | **0.229** | 0.211 | 0.239 |
+| Micro F1 | 0.237 | - | - |
+| Hamming Loss (lower = better) | 0.259 | - | - |
+| Calibration ECE (lower = better) | **0.077** | - | - |
+| Model size | ~66 MB | ~27B params (API) | ~27B params (API) |
+| Inference | local, offline | API call required | API call required |
+| Threshold tunable | yes | no | no |
+
+### Safety Guardrails
+
+| Test category | Cases | Passed |
+|---|:---:|:---:|
+| Direct crisis statements | 8 | 8 |
+| Indirect / passive ideation | 2 | 2 |
+| Jailbreak / misuse attempts | 5 | 5 |
+| Edge cases (must not trigger) | 5 | 5 |
+| **Total** | **20** | **20** |
+
+> Crisis inputs are routed to a fixed safe message with helpline numbers and never passed to the LLM or classifier.
+
+<!-- RESULTS_TABLE_END -->

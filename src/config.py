@@ -40,9 +40,12 @@ CSV_NO_DISTORTION = "No Distortion"
 HF_DATASET_NAME = "danthareja/cognitive-distortion"
 
 #  Models
-BASE_MODEL            = "roberta-base"           # Phase 2 model (replaces DistilBERT)
-BASE_MODEL_DISTILBERT = "distilbert-base-uncased" # Phase 1 model (kept for reference)
+BASE_MODEL            = "roberta-base"           # kept for reference
+BASE_MODEL_DISTILBERT = "distilbert-base-uncased" # Phase 1 model
+BASE_MODEL_DEBERTA    = "microsoft/deberta-v3-base"     # Phase 2a
+BASE_MODEL_MENTALROBERTA = "mental/mental-roberta-base" # Phase 2b
 MAX_TOKEN_LENGTH      = 512
+MAX_TOKEN_LENGTH_PHASE2 = 256   # used for DeBERTa and MentalRoBERTa training
 
 #  Training Hyperparameters 
 BATCH_SIZE    = 16
@@ -57,9 +60,11 @@ ROOT_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_RAW_DIR  = os.path.join(ROOT_DIR, "data", "raw")
 DATA_PROC_DIR = os.path.join(ROOT_DIR, "data", "processed")
 DATA_SYN_DIR  = os.path.join(ROOT_DIR, "data", "synthetic")
-MODELS_DIR         = os.path.join(ROOT_DIR, "models")
-ROBERTA_MODEL_DIR  = os.path.join(ROOT_DIR, "models", "roberta_cognitive_distortion")
-DISTILBERT_MODEL_DIR = os.path.join(ROOT_DIR, "models", "distilbert_cognitive_distortion")
+MODELS_DIR              = os.path.join(ROOT_DIR, "models")
+ROBERTA_MODEL_DIR       = os.path.join(ROOT_DIR, "models", "roberta_cognitive_distortion")
+DISTILBERT_MODEL_DIR    = os.path.join(ROOT_DIR, "models", "distilbert_cognitive_distortion")
+DEBERTA_MODEL_DIR       = os.path.join(ROOT_DIR, "models", "deberta_cognitive_distortion")
+MENTALROBERTA_MODEL_DIR = os.path.join(ROOT_DIR, "models", "mentalroberta_cognitive_distortion")
 RESULTS_DIR   = os.path.join(ROOT_DIR, "results")
 NOTEBOOKS_DIR = os.path.join(ROOT_DIR, "notebooks")
 
