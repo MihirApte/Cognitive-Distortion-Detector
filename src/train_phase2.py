@@ -58,6 +58,7 @@ MODEL_REGISTRY = {
         "lr": 1e-5,          # lowered from 2e-5 — DeBERTa more stable at 1e-5
         "warmup_ratio": 0.1,
         "adamw_eps": 1e-6,   # CRITICAL: default 1e-8 causes NaN with DeBERTa
+        "focal_alpha": 0.75, # up-weights positives (rare labels); 0.25 suppresses them
     },
     "mentalroberta": {
         "base_model": BASE_MODEL_MENTALROBERTA,
