@@ -16,9 +16,6 @@ Usage (run on Colab after mounting Drive and cloning repo):
     # MentalRoBERTa
     python src/train_phase2.py --model mentalroberta
 
-    # With custom hyperparameters
-    python src/train_phase2.py --model deberta --epochs 5 --batch-size 8 --lr 2e-5
-
 Outputs saved to:
     models/deberta_cognitive_distortion/          (or mentalroberta_...)
     results/deberta_results.json                  (or mentalroberta_...)
@@ -57,9 +54,10 @@ MODEL_REGISTRY = {
         "base_model": BASE_MODEL_DEBERTA,
         "output_dir": DEBERTA_MODEL_DIR,
         "results_file": "deberta_results.json",
-        "batch_size": 8,        # DeBERTa uses more GPU memory
-        "lr": 2e-5,
+        "batch_size": 8,
+        "lr": 1e-5,          # lowered from 2e-5 — DeBERTa more stable at 1e-5
         "warmup_ratio": 0.1,
+        "adamw_eps": 1e-6,   # CRITICAL: default 1e-8 causes NaN with DeBERTa
     },
     "mentalroberta": {
         "base_model": BASE_MODEL_MENTALROBERTA,
@@ -68,6 +66,7 @@ MODEL_REGISTRY = {
         "batch_size": 16,
         "lr": 2e-5,
         "warmup_ratio": 0.06,
+        "adamw_eps": 1e-8,   # RoBERTa fine with default eps
     },
 }
 
@@ -95,24 +94,24 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        probs = torch.sigmoid(logits)
         bce   = nn.functional.binary_cross_entropy_with_logits(logits, targets, reduction="none")
-
-        # p_t = p for positives, (1-p) for negatives
-        p_t      = probs * targets + (1 - probs) * (1 - targets)
+        probs = torch.sigmoid(logits)
+        p_t   = probs * targets + (1 - probs) * (1 - targets)
+        p_t   = p_t.clamp(min=1e-7, max=1 - 1e-7)   # prevent NaN in (1-p_t)^gamma
         alpha_t  = self.alpha * targets + (1 - self.alpha) * (1 - targets)
         focal_wt = alpha_t * (1 - p_t) ** self.gamma
-        loss     = focal_wt * bce
-
+        loss = focal_wt * bce
+        if torch.isnan(loss).any():
+            loss = torch.nan_to_num(loss, nan=0.0)   # safety net
         return loss.mean() if self.reduction == "mean" else loss.sum()
 
 
 # ── Dataset ────────────────────────────────────────────────────────────────────
 class DistortionDataset(Dataset):
     def __init__(self, texts: list[str], labels: np.ndarray, tokenizer, max_length: int):
-        self.texts     = texts
-        self.labels    = labels.astype(np.float32)
-        self.tokenizer = tokenizer
+        self.texts      = texts
+        self.labels     = labels.astype(np.float32)
+        self.tokenizer  = tokenizer
         self.max_length = max_length
 
     def __len__(self):
@@ -151,6 +150,7 @@ def load_splits():
 def train_epoch(model, loader, optimiser, scheduler, loss_fn, device):
     model.train()
     total_loss = 0.0
+    valid_batches = 0
     for batch in loader:
         input_ids      = batch["input_ids"].to(device)
         attention_mask = batch["attention_mask"].to(device)
@@ -159,13 +159,19 @@ def train_epoch(model, loader, optimiser, scheduler, loss_fn, device):
         optimiser.zero_grad()
         logits = model(input_ids=input_ids, attention_mask=attention_mask).logits
         loss   = loss_fn(logits, labels)
+
+        if torch.isnan(loss):
+            print("  WARNING: NaN loss in batch, skipping")
+            continue
+
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimiser.step()
         scheduler.step()
-        total_loss += loss.item()
+        total_loss  += loss.item()
+        valid_batches += 1
 
-    return total_loss / len(loader)
+    return total_loss / max(valid_batches, 1)
 
 
 # ── Evaluate ──────────────────────────────────────────────────────────────────
@@ -175,11 +181,11 @@ def evaluate(model, loader, device, threshold: float = 0.40):
 
     with torch.no_grad():
         for batch in loader:
-            input_ids      = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            logits = model(input_ids=input_ids, attention_mask=attention_mask).logits
-            probs  = torch.sigmoid(logits).cpu().numpy()
-            all_probs.append(probs)
+            logits = model(
+                input_ids=batch["input_ids"].to(device),
+                attention_mask=batch["attention_mask"].to(device),
+            ).logits
+            all_probs.append(torch.sigmoid(logits).cpu().numpy())
             all_labels.append(batch["labels"].numpy())
 
     probs  = np.vstack(all_probs)
@@ -187,12 +193,12 @@ def evaluate(model, loader, device, threshold: float = 0.40):
     preds  = (probs >= threshold).astype(int)
 
     return {
-        "probs":     probs,
-        "preds":     preds,
-        "labels":    labels,
-        "macro_f1":  float(f1_score(labels, preds, average="macro",  zero_division=0)),
-        "micro_f1":  float(f1_score(labels, preds, average="micro",  zero_division=0)),
-        "hamming":   float(hamming_loss(labels, preds)),
+        "probs":    probs,
+        "preds":    preds,
+        "labels":   labels,
+        "macro_f1": float(f1_score(labels, preds, average="macro",  zero_division=0)),
+        "micro_f1": float(f1_score(labels, preds, average="micro",  zero_division=0)),
+        "hamming":  float(hamming_loss(labels, preds)),
         "per_label_f1": {
             label: round(float(f1_score(labels[:, i], preds[:, i], zero_division=0)), 4)
             for i, label in enumerate(DISTORTION_LABELS)
@@ -204,7 +210,6 @@ def evaluate(model, loader, device, threshold: float = 0.40):
 def sweep_thresholds(probs: np.ndarray, labels: np.ndarray) -> dict:
     """
     Find the threshold that maximises F1 per label independently.
-    Returns best_thresholds dict and the resulting per-label F1.
 
     Interview defence:
         A single global threshold (0.40) is a blunt instrument. Different
@@ -216,8 +221,7 @@ def sweep_thresholds(probs: np.ndarray, labels: np.ndarray) -> dict:
     for i, label in enumerate(DISTORTION_LABELS):
         best_f1, best_t = 0.0, 0.40
         for t in candidates:
-            preds = (probs[:, i] >= t).astype(int)
-            f1 = float(f1_score(labels[:, i], preds, zero_division=0))
+            f1 = float(f1_score(labels[:, i], (probs[:, i] >= t).astype(int), zero_division=0))
             if f1 > best_f1:
                 best_f1, best_t = f1, t
         best[label] = {"threshold": round(float(best_t), 2), "f1": round(best_f1, 4)}
@@ -235,19 +239,21 @@ def train(
     focal_gamma: float = 2.0,
     global_threshold: float = 0.40,
 ):
-    cfg = MODEL_REGISTRY[model_key]
-    base_model  = cfg["base_model"]
-    output_dir  = cfg["output_dir"]
+    cfg          = MODEL_REGISTRY[model_key]
+    base_model   = cfg["base_model"]
+    output_dir   = cfg["output_dir"]
     results_file = cfg["results_file"]
-    batch_size  = batch_size or cfg["batch_size"]
-    lr          = lr or cfg["lr"]
+    batch_size   = batch_size or cfg["batch_size"]
+    lr           = lr or cfg["lr"]
+    adamw_eps    = cfg.get("adamw_eps", 1e-8)
 
     torch.manual_seed(SEED)
     np.random.seed(SEED)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     print(f"\n{'='*60}")
     print(f"Phase 2 Training: {base_model}")
-    print(f"Device: {device} | Epochs: {epochs} | Batch: {batch_size} | LR: {lr}")
+    print(f"Device: {device} | Epochs: {epochs} | Batch: {batch_size} | LR: {lr} | eps: {adamw_eps}")
     print(f"Max length: {max_length} | Focal Loss: {use_focal_loss}")
     print(f"{'='*60}\n")
 
@@ -260,13 +266,12 @@ def train(
     print(f"\nLoading tokeniser: {base_model} ...")
     tokenizer = AutoTokenizer.from_pretrained(base_model)
 
-    train_ds = DistortionDataset(X_train, Y_train, tokenizer, max_length)
-    val_ds   = DistortionDataset(X_val,   Y_val,   tokenizer, max_length)
-    test_ds  = DistortionDataset(X_test,  Y_test,  tokenizer, max_length)
-
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=2)
-    val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=2)
-    test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(DistortionDataset(X_train, Y_train, tokenizer, max_length),
+                              batch_size=batch_size, shuffle=True,  num_workers=2)
+    val_loader   = DataLoader(DistortionDataset(X_val,   Y_val,   tokenizer, max_length),
+                              batch_size=batch_size, shuffle=False, num_workers=2)
+    test_loader  = DataLoader(DistortionDataset(X_test,  Y_test,  tokenizer, max_length),
+                              batch_size=batch_size, shuffle=False, num_workers=2)
 
     # ── Model ─────────────────────────────────────────────────────────────────
     print(f"Loading model: {base_model} ...")
@@ -279,20 +284,20 @@ def train(
     model.to(device)
 
     # ── Loss, optimiser, scheduler ────────────────────────────────────────────
-    loss_fn = FocalLoss(gamma=focal_gamma) if use_focal_loss else nn.BCEWithLogitsLoss()
-    optimiser = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
-    total_steps = len(train_loader) * epochs
+    loss_fn   = FocalLoss(gamma=focal_gamma) if use_focal_loss else nn.BCEWithLogitsLoss()
+    optimiser = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01, eps=adamw_eps)
+    total_steps  = len(train_loader) * epochs
     warmup_steps = int(total_steps * cfg["warmup_ratio"])
-    scheduler = get_linear_schedule_with_warmup(optimiser, warmup_steps, total_steps)
+    scheduler    = get_linear_schedule_with_warmup(optimiser, warmup_steps, total_steps)
 
     # ── Training loop ─────────────────────────────────────────────────────────
-    best_val_f1   = 0.0
+    best_val_f1    = -1.0   # initialise to -1 so first epoch always saves a checkpoint
     best_val_epoch = 0
     os.makedirs(output_dir, exist_ok=True)
 
     print(f"\nTraining for {epochs} epochs ...\n")
     for epoch in range(1, epochs + 1):
-        train_loss = train_epoch(model, train_loader, optimiser, scheduler, loss_fn, device)
+        train_loss  = train_epoch(model, train_loader, optimiser, scheduler, loss_fn, device)
         val_metrics = evaluate(model, val_loader, device, global_threshold)
 
         print(
@@ -303,7 +308,7 @@ def train(
         )
 
         if val_metrics["macro_f1"] > best_val_f1:
-            best_val_f1   = val_metrics["macro_f1"]
+            best_val_f1    = val_metrics["macro_f1"]
             best_val_epoch = epoch
             model.save_pretrained(output_dir)
             tokenizer.save_pretrained(output_dir)
@@ -329,11 +334,12 @@ def train(
     # ── Per-label threshold sweep ─────────────────────────────────────────────
     print("\nRunning per-label threshold sweep on test set ...")
     best_thresholds = sweep_thresholds(test_metrics["probs"], test_metrics["labels"])
-    swept_macro_f1 = np.mean([v["f1"] for v in best_thresholds.values()])
+    swept_macro_f1  = np.mean([v["f1"] for v in best_thresholds.values()])
     print(f"Macro F1 with per-label thresholds: {swept_macro_f1:.4f}")
     print("(use global threshold for deployment; this shows the upper bound)\n")
 
     # ── Save results ──────────────────────────────────────────────────────────
+    from sklearn.metrics import precision_score, recall_score
     os.makedirs(RESULTS_DIR, exist_ok=True)
     results = {
         "model":             base_model,
@@ -347,15 +353,13 @@ def train(
         "hamming_loss":      round(test_metrics["hamming"], 4),
         "per_label_f1":      test_metrics["per_label_f1"],
         "per_label_precision": {
-            label: round(float(__import__("sklearn.metrics", fromlist=["precision_score"])
-                         .precision_score(test_metrics["labels"][:, i],
-                                          test_metrics["preds"][:, i], zero_division=0)), 4)
+            label: round(float(precision_score(test_metrics["labels"][:, i],
+                               test_metrics["preds"][:, i], zero_division=0)), 4)
             for i, label in enumerate(DISTORTION_LABELS)
         },
         "per_label_recall": {
-            label: round(float(__import__("sklearn.metrics", fromlist=["recall_score"])
-                         .recall_score(test_metrics["labels"][:, i],
-                                       test_metrics["preds"][:, i], zero_division=0)), 4)
+            label: round(float(recall_score(test_metrics["labels"][:, i],
+                               test_metrics["preds"][:, i], zero_division=0)), 4)
             for i, label in enumerate(DISTORTION_LABELS)
         },
         "per_label_best_thresholds": best_thresholds,
@@ -380,17 +384,11 @@ def train(
 # ── CLI ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Phase 2 fine-tuning")
-    parser.add_argument(
-        "--model", required=True, choices=["deberta", "mentalroberta"],
-        help="Which model to train"
-    )
+    parser.add_argument("--model", required=True, choices=["deberta", "mentalroberta"])
     parser.add_argument("--epochs",     type=int,   default=5)
-    parser.add_argument("--batch-size", type=int,   default=None,
-                        help="Override default batch size for model")
-    parser.add_argument("--lr",         type=float, default=None,
-                        help="Override default learning rate")
-    parser.add_argument("--no-focal",   action="store_true",
-                        help="Use standard BCE loss instead of Focal Loss")
+    parser.add_argument("--batch-size", type=int,   default=None)
+    parser.add_argument("--lr",         type=float, default=None)
+    parser.add_argument("--no-focal",   action="store_true")
     parser.add_argument("--threshold",  type=float, default=0.40)
     args = parser.parse_args()
 
