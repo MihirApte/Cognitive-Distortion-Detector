@@ -45,6 +45,7 @@ from src.config import (
     DATA_PROC_DIR, RESULTS_DIR,
     DEBERTA_MODEL_DIR, MENTALROBERTA_MODEL_DIR,
     BASE_MODEL_DEBERTA, BASE_MODEL_MENTALROBERTA,
+    BASE_MODEL, ROBERTA_MODEL_DIR,
     MAX_TOKEN_LENGTH_PHASE2, SEED,
 )
 
@@ -59,6 +60,16 @@ MODEL_REGISTRY = {
         "warmup_ratio": 0.1,
         "adamw_eps": 1e-6,   # CRITICAL: default 1e-8 causes NaN with DeBERTa
         "focal_alpha": 0.75, # up-weights positives (rare labels); 0.25 suppresses them
+    },
+    # Ungated fallback: mental/mental-roberta-base needs HF access approval
+    "roberta": {
+        "base_model": BASE_MODEL,            # roberta-base
+        "output_dir": ROBERTA_MODEL_DIR,
+        "results_file": "roberta_results.json",
+        "batch_size": 16,
+        "lr": 2e-5,
+        "warmup_ratio": 0.06,
+        "adamw_eps": 1e-8,
     },
     "mentalroberta": {
         "base_model": BASE_MODEL_MENTALROBERTA,
@@ -394,7 +405,7 @@ def train(
 # ── CLI ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Phase 2 fine-tuning")
-    parser.add_argument("--model", required=True, choices=["deberta", "mentalroberta"])
+    parser.add_argument("--model", required=True, choices=["deberta", "roberta", "mentalroberta"])
     parser.add_argument("--epochs",     type=int,   default=5)
     parser.add_argument("--batch-size", type=int,   default=None)
     parser.add_argument("--lr",         type=float, default=None)
