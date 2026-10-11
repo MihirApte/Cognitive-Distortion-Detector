@@ -55,7 +55,7 @@ MODEL_REGISTRY = {
         "output_dir": DEBERTA_MODEL_DIR,
         "results_file": "deberta_results.json",
         "batch_size": 8,
-        "lr": 1e-5,          # lowered from 2e-5 — DeBERTa more stable at 1e-5
+        "lr": 3e-5,          # 1e-5 was too low: model collapsed to predicting class priors
         "warmup_ratio": 0.1,
         "adamw_eps": 1e-6,   # CRITICAL: default 1e-8 causes NaN with DeBERTa
         "focal_alpha": 0.75, # up-weights positives (rare labels); 0.25 suppresses them
@@ -285,7 +285,16 @@ def train(
     model.to(device)
 
     # ── Loss, optimiser, scheduler ────────────────────────────────────────────
-    loss_fn   = FocalLoss(gamma=focal_gamma) if use_focal_loss else nn.BCEWithLogitsLoss()
+    if use_focal_loss:
+        loss_fn = FocalLoss(gamma=focal_gamma, alpha=cfg.get("focal_alpha", 0.25))
+    else:
+        # pos_weight = (negatives / positives) per label, capped at 10.
+        # Without it the model collapses to predicting "no distortion" for everything.
+        pos = Y_train.sum(axis=0)
+        neg = len(Y_train) - pos
+        pw  = np.clip(neg / np.maximum(pos, 1), 1.0, 10.0)
+        print("  pos_weight per label:", np.round(pw, 1))
+        loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pw, dtype=torch.float32).to(device))
     optimiser = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01, eps=adamw_eps)
     total_steps  = len(train_loader) * epochs
     warmup_steps = int(total_steps * cfg["warmup_ratio"])
