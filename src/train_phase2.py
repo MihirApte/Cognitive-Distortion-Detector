@@ -292,7 +292,7 @@ def train(
         # Without it the model collapses to predicting "no distortion" for everything.
         pos = Y_train.sum(axis=0)
         neg = len(Y_train) - pos
-        pw  = np.clip(neg / np.maximum(pos, 1), 1.0, 10.0)
+        pw  = np.clip(neg / np.maximum(pos, 1), 1.0, 3.0)   # cap 3: cap 10 overcorrected to all-positive
         print("  pos_weight per label:", np.round(pw, 1))
         loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pw, dtype=torch.float32).to(device))
     optimiser = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01, eps=adamw_eps)
