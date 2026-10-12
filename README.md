@@ -9,7 +9,7 @@ pinned: false
 
 # Cognitive Distortion Detector
 
-A multi-label NLP classifier that identifies cognitive distortions in text, grounded in Cognitive Behavioural Therapy (CBT). Built as a portfolio project combining transformer fine-tuning, explainability (LIME), and a full-stack deployment on HuggingFace Spaces.
+A multi-label NLP classifier that identifies cognitive distortions in text, grounded in Cognitive Behavioural Therapy (CBT). Built as a portfolio project combining transformer fine-tuning, explainability (LIME), an LLM explanation layer with hallucination checks, safety guardrails, and a full-stack deployment on HuggingFace Spaces.
 
 **[Try the live demo →](https://huggingface.co/spaces/MihirApte/cognitive-distortion-detector)**
 
@@ -17,11 +17,15 @@ A multi-label NLP classifier that identifies cognitive distortions in text, grou
 
 ## What It Does
 
-Type a thought or sentence (up to 150 words). The app:
+Type a thought or paragraph (up to 200 words). The app:
 
-1. Runs it through a fine-tuned DistilBERT model to detect which of 10 cognitive distortions are present
-2. Uses LIME to highlight which words drove each prediction
-3. Shows a CBT-grounded therapy response for each detected distortion - what the distortion is, a relevant technique, a Socratic challenge question, and a suggested reframe
+1. Screens the text for crisis or misuse signals (a fixed safe message is returned instead of any model output)
+2. Runs it through a fine-tuned transformer to detect which of 10 cognitive distortions are present
+3. Uses LIME to highlight which words drove each prediction
+4. Optionally writes a short plain-English explanation grounded in those LIME words (checked by a citation verifier)
+5. Shows a CBT-grounded response for each detected distortion: what it is, a relevant technique, a Socratic challenge question, and a suggested reframe
+
+The top 4 distortions are shown first, with a "show more" button for the rest.
 
 ---
 
@@ -42,56 +46,79 @@ Type a thought or sentence (up to 150 words). The app:
 
 ---
 
-## ⚠️ Phase 1 - Work in Progress
+## Model Performance
 
-This is **Phase 1** of an ongoing project. The deployed model is functional but performance is limited by training data quality. False positives and label confusion can occur. A clear "Work in Progress" notice is shown in the app.
+Two fine-tuned transformers (DistilBERT and MentalRoBERTa) and two LLM baselines (zero-shot and few-shot) were evaluated on the same 10 labels. The deployed model runs at **threshold = 0.40**.
 
-**Phase 2 is in active development:** DeBERTa-v3-base + Focal Loss + semantically distinct per-distortion training data. Expected to significantly reduce false positives and improve label separation.
+> Fine-tuned models: full 506-row held-out test set. LLM baselines (qwen3.8-27b via Groq): a 50-row subset of that test set, so their numbers are indicative only and not directly comparable. DistilBERT is shown at both 0.40 (the threshold used for MentalRoBERTa) and 0.20 (the threshold it was originally evaluated at). MentalRoBERTa was trained on 1,821 rows with 203 held out for choosing the best epoch; DistilBERT used about 2,020.
+
+### Overall metrics
+
+| Metric | DistilBERT (t=0.40) | DistilBERT (t=0.20) | MentalRoBERTa (t=0.40) | LLM zero-shot | LLM few-shot |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Macro F1 | 0.172 | 0.229 | **0.268** | 0.211 | 0.239 |
+| Micro F1 | 0.177 | 0.236 | **0.293** | - | - |
+| Macro precision | 0.192 | 0.151 | **0.239** | - | - |
+| Macro recall | 0.172 | **0.489** | 0.323 | - | - |
+| Hamming loss (lower = better) | **0.121** | 0.259 | 0.136 | - | - |
+| Labels with F1 ≥ 0.25 (of 10) | 2 | 4 | **6** | - | - |
+| Parameters | ~66M | ~66M | ~125M | ~27B | ~27B |
+| Inference | local, offline | local, offline | local, offline | API call | API call |
+| Test rows | 506 | 506 | 506 | 50 | 50 |
+
+### Per-label F1 (threshold 0.40 for both fine-tuned models)
+
+| Distortion | DistilBERT | MentalRoBERTa | LLM zero-shot | LLM few-shot | Better fine-tuned model |
+|---|:---:|:---:|:---:|:---:|:---:|
+| All-or-nothing thinking | 0.109 | 0.063 | 0.000 | 0.000 | DistilBERT |
+| Overgeneralization | 0.033 | 0.286 | 0.105 | 0.154 | MentalRoBERTa |
+| Mental filter | 0.161 | 0.171 | 0.286 | 0.667 | MentalRoBERTa |
+| Should statements | 0.185 | 0.279 | 0.333 | 0.000 | MentalRoBERTa |
+| Labeling | 0.274 | 0.416 | 0.500 | 0.889 | MentalRoBERTa |
+| Personalization | 0.146 | 0.234 | 0.500 | 0.500 | MentalRoBERTa |
+| Catastrophising/Magnification | 0.274 | 0.356 | 0.133 | 0.000 | MentalRoBERTa |
+| Emotional Reasoning | 0.219 | 0.184 | 0.000 | 0.000 | DistilBERT |
+| Mind Reading | 0.143 | 0.414 | 0.250 | 0.182 | MentalRoBERTa |
+| Fortune-telling | 0.174 | 0.275 | 0.000 | 0.000 | MentalRoBERTa |
+
+**Reading the results:**
+- MentalRoBERTa is better on 8 of 10 labels and about 0.10 macro F1 higher than DistilBERT at the same threshold. DistilBERT only catches up on recall by using a very low threshold, which also floods the output with false positives (precision 0.15).
+- The LLMs do well on semantically distinctive labels such as Labeling and Mental filter, but score zero on others. With only 50 rows these per-label numbers are very noisy.
+- Absolute scores are still modest. The dataset is small (2,530 examples), imbalanced, multi-label, and inherently noisy, since even human annotators disagree on many examples. This looks like a data limit more than a model limit, which is why Phase 3 targets the data.
+- Per-label F1 for All-or-nothing thinking remains very low for every model.
+
+Full error analysis is in `notebooks/03_error_analysis.ipynb`.
 
 ---
 
-## Model Performance
+## Safety and Responsible AI
 
-**Phase 1:** Fine-tuned DistilBERT (`distilbert-base-uncased`) on ~2,020 training examples. The API runs at **threshold = 0.40** (higher precision, lower recall compared to the evaluation below which used 0.20).
-
-| Metric | Score (threshold=0.20) |
-|--------|-------|
-| Micro F1 | 0.237 |
-| Macro F1 | 0.229 |
-| Hamming Loss | 0.259 |
-
-**Per-label F1:**
-
-| Label | F1 |
-|-------|----|
-| All-or-nothing thinking | 0.182 |
-| Overgeneralization | 0.267 |
-| Mental filter | 0.173 |
-| Should statements | 0.188 |
-| Labeling | 0.304 |
-| Personalization | 0.185 |
-| Catastrophising/Magnification | 0.279 |
-| Emotional Reasoning | 0.241 |
-| Mind Reading | 0.264 |
-| Fortune-telling | 0.210 |
-
-**On the scores:** These are modest in absolute terms, and that's expected. The dataset (2,530 examples, 10 overlapping labels, sourced from therapist Q&A) is small, imbalanced, and inherently noisy - even human annotators disagree on many examples. The root cause of current limitations is template-based synthetic data using shared vocabulary across distortion classes. This is the primary target for Phase 2. Full error analysis is in `notebooks/03_error_analysis.ipynb`.
+- **Crisis routing:** regex screening for suicidal ideation, self-harm and passive ideation runs before any model. Matches get a fixed safe message with helplines and never reach the classifier or the LLM.
+- **Misuse detection:** jailbreak attempts and requests for therapy or medical advice are refused.
+- **Adversarial tests:** 20 test cases (`tests/test_adversarial.py`), all passing.
+- **Grounded explanations:** the optional LLM explanation may only cite words in the LIME top-word list; a verifier flags anything else.
+- **Calibration:** DistilBERT overall ECE = 0.077 (see `results/calibration_report.json`). Not yet measured for MentalRoBERTa.
+- **Not a diagnosis:** predictions are for non-clinical, educational use only. See `MODEL_CARD.md`.
 
 ---
 
 ## Architecture
 
 ```
-User input (text)
+User input (text, up to 200 words)
        │
        ▼
 FastAPI /analyse endpoint
        │
-       ├─ 1. DistilBERT inference → sigmoid probs for 10 labels
+       ├─ 0. Safety: crisis check → misuse check (fixed responses, no model)
        │
-       ├─ 2. LIME explainer → top 6 keywords per detected label
+       ├─ 1. MentalRoBERTa inference → sigmoid probs for 10 labels
        │
-       └─ 3. Static guidance lookup → CBT technique + reframe
+       ├─ 2. LIME explainer → top keywords per detected label
+       │
+       ├─ 3. Static guidance lookup → CBT technique + reframe
+       │
+       └─ 4. (optional) LLM explanation grounded in LIME words + citation check
                     │
                     ▼
              JSON response → rendered in browser
@@ -103,8 +130,9 @@ FastAPI /analyse endpoint
 
 | Layer | Tools |
 |-------|-------|
-| Model | DistilBERT (`distilbert-base-uncased`), HuggingFace Transformers |
-| Training | Google Colab (T4 GPU), 10 epochs |
+| Model | MentalRoBERTa (`mental/mental-roberta-base`), HuggingFace Transformers, PyTorch |
+| Baselines | DistilBERT, LLM zero-/few-shot via Groq API |
+| Training | Google Colab (T4 GPU), weighted BCE loss, max length 256 |
 | Explainability | LIME (`lime.lime_text`) |
 | Backend | FastAPI, Uvicorn, Pydantic v2 |
 | Frontend | Vanilla HTML / CSS / JavaScript (single file) |
@@ -116,7 +144,7 @@ FastAPI /analyse endpoint
 
 [danthareja/cognitive-distortion](https://huggingface.co/datasets/danthareja/cognitive-distortion)
 
-2,530 annotated patient questions from a therapist Q&A platform. Pre-split: 2,020 train / 506 test. Multi-label - one question can exhibit multiple distortions simultaneously.
+2,530 annotated patient questions from a therapist Q&A platform. Pre-split: 2,020 train / 506 test (MentalRoBERTa further splits the training set into 1,821 train / 203 validation). Multi-label: one question can exhibit multiple distortions simultaneously.
 
 Original source: Shreevastava & Foltz (2021), *Detecting Cognitive Distortions from Patient-Therapist Interactions*.
 
@@ -127,24 +155,29 @@ Original source: Shreevastava & Foltz (2021), *Detecting Cognitive Distortions f
 ```
 NLP_CBT/
 ├── src/
-│   ├── config.py          # Labels, paths, hyperparameters
-│   ├── preprocess.py      # Data loading & tokenisation
-│   ├── train.py           # DistilBERT fine-tuning loop
-│   ├── evaluate.py        # Metrics + predictions CSV
-│   ├── explain.py         # LIME explainability wrapper
-│   ├── guidance.py        # Static CBT guidance lookup
+│   ├── config.py            # Labels, paths, hyperparameters
+│   ├── preprocess.py        # Data loading & tokenisation
+│   ├── baseline.py          # TF-IDF baseline
+│   ├── evaluate.py          # Metrics + predictions CSV (DistilBERT)
+│   ├── train_phase2.py      # MentalRoBERTa fine-tuning
+│   ├── explain.py           # LIME explainability wrapper
+│   ├── guidance.py          # Static CBT guidance lookup
+│   ├── safety.py            # Crisis routing + misuse detection
+│   ├── calibration.py       # ECE + reliability diagrams
+│   ├── llm_baseline.py      # Zero-/few-shot LLM baseline
+│   ├── llm_explainer.py     # LIME-grounded LLM explanations
 │   └── api/
-│       └── main.py        # FastAPI app (inference + frontend serving)
+│       └── main.py          # FastAPI app (inference + frontend serving)
 ├── frontend/
-│   └── index.html         # Single-file UI
-├── notebooks/
-│   ├── 01_eda.ipynb
-│   ├── 02_training.ipynb
-│   ├── 03_error_analysis.ipynb
-│   └── 04_lime_explanations.ipynb
+│   └── index.html           # Single-file UI
+├── notebooks/               # 01 EDA ... 06 MentalRoBERTa training
+├── tests/
+│   └── test_adversarial.py  # 20 safety tests
 ├── models/
-│   └── distilbert_cognitive_distortion/   # Saved weights (Git LFS)
-├── results/               # Evaluation outputs, LIME HTMLs
+│   ├── distilbert_cognitive_distortion/       # Baseline weights (Git LFS)
+│   └── mentalroberta_cognitive_distortion/    # Deployed weights (Git LFS)
+├── results/                 # Evaluation outputs, LIME HTMLs
+├── MODEL_CARD.md
 ├── Dockerfile
 ├── requirements.txt
 └── README.md
@@ -170,12 +203,17 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 # 4. Install dependencies
 pip install -r requirements.txt
 
-# 5. Start the server
+# 5. (optional) enable LLM explanations
+export GROQ_API_KEY=your_key    # Windows PowerShell: $env:GROQ_API_KEY="your_key"
+
+# 6. Start the server
 uvicorn src.api.main:app --reload --port 8000
 
-# 6. Open in browser
+# 7. Open in browser
 # http://localhost:8000
 ```
+
+The fine-tuned weights load from the local `models/` folder, so no Hugging Face login is needed to run the app. A login is only needed to retrain, because the base model is gated.
 
 ---
 
@@ -187,7 +225,7 @@ docker run -p 7860:7860 cdd-app
 # Open: http://localhost:7860
 ```
 
-**Note on latency:** LIME runs ~300 perturbations through DistilBERT on CPU per detected label. Expect 10–20 seconds per request on the free HuggingFace Spaces tier. This is a known trade-off of running LIME on CPU.
+**Note on latency:** LIME runs ~300 perturbations through the model on CPU per detected label. Expect noticeably slower responses on the free HuggingFace Spaces tier, especially for long inputs. This is a known trade-off of running LIME on CPU.
 
 ---
 
@@ -196,54 +234,25 @@ docker run -p 7860:7860 cdd-app
 | Notebook | Contents |
 |----------|----------|
 | `01_eda.ipynb` | Label distribution, class imbalance, text length analysis |
-| `02_training.ipynb` | DistilBERT fine-tuning on Colab T4, training curves |
+| `02_train_distilbert.ipynb` | DistilBERT fine-tuning on Colab T4, training curves |
 | `03_error_analysis.ipynb` | Per-label F1, confusion patterns, failure cases |
 | `04_lime_explanations.ipynb` | LIME word importance visualisations per distortion |
+| `05_synthetic_data.ipynb` | Synthetic data generation experiments |
+| `06_mentalroberta_training.ipynb` | MentalRoBERTa fine-tuning on Colab (needs Hugging Face login) |
 
 ---
 
-<!-- RESULTS_TABLE_START -->
-## Model Comparison Results
+## Phase 3 (Planned): Better Data
 
-> DistilBERT evaluated on full 506-row held-out test set. LLM baselines (qwen3.8-27b) evaluated on 50 examples. All F1 scores are macro-averaged per label.
+Experiments showed the limit is data quality, not model choice, so Phase 3 will focus only on data and will not add new models:
 
-### Per-Label F1 Score
+- Replace short single-label synthetic sentences (about 15 words) with realistic multi-label paragraphs that match the real data (about 165 words)
+- Add more examples for the weakest labels: All-or-nothing thinking, Mental filter, Should statements
+- Add hard negatives (neutral or reasonable thinking that sounds similar to a distortion)
+- Re-validate labels with a psychologist and re-evaluate on the untouched test set
 
-| Distortion | DistilBERT (fine-tuned) | LLM Zero-shot | LLM Few-shot | Winner |
-|---|:---:|:---:|:---:|:---:|
-| All-or-nothing thinking | 0.182 | 0.000 | 0.000 | DistilBERT |
-| Overgeneralization | 0.267 | 0.105 | 0.154 | DistilBERT |
-| Mental filter | 0.173 | 0.286 | 0.667 | LLM few-shot |
-| Should statements | 0.188 | 0.333 | 0.000 | LLM zero-shot |
-| Labeling | 0.304 | 0.500 | 0.889 | LLM few-shot |
-| Personalization | 0.185 | 0.500 | 0.500 | LLM few-shot |
-| Catastrophising/Magnification | 0.279 | 0.133 | 0.000 | DistilBERT |
-| Emotional Reasoning | 0.241 | 0.000 | 0.000 | DistilBERT |
-| Mind Reading | 0.264 | 0.250 | 0.182 | DistilBERT |
-| Fortune-telling | 0.210 | 0.000 | 0.000 | DistilBERT |
+---
 
-### Overall Metrics
+## Licensing and Attribution
 
-| Metric | DistilBERT (fine-tuned) | LLM Zero-shot | LLM Few-shot |
-|---|:---:|:---:|:---:|
-| Macro F1 | **0.229** | 0.211 | 0.239 |
-| Micro F1 | 0.237 | - | - |
-| Hamming Loss (lower = better) | 0.259 | - | - |
-| Calibration ECE (lower = better) | **0.077** | - | - |
-| Model size | ~66 MB | ~27B params (API) | ~27B params (API) |
-| Inference | local, offline | API call required | API call required |
-| Threshold tunable | yes | no | no |
-
-### Safety Guardrails
-
-| Test category | Cases | Passed |
-|---|:---:|:---:|
-| Direct crisis statements | 8 | 8 |
-| Indirect / passive ideation | 2 | 2 |
-| Jailbreak / misuse attempts | 5 | 5 |
-| Edge cases (must not trigger) | 5 | 5 |
-| **Total** | **20** | **20** |
-
-> Crisis inputs are routed to a fixed safe message with helpline numbers and never passed to the LLM or classifier.
-
-<!-- RESULTS_TABLE_END -->
+The deployed model is a fine-tuned version of [MentalRoBERTa](https://huggingface.co/mental/mental-roberta-base) (Ji et al.), released under [CC BY-NC 4.0](https://spdx.org/licenses/CC-BY-NC-4.0). The fine-tuned weights in this repository are therefore for **non-commercial, non-clinical use only**. Changes made: fine-tuned for 10-label cognitive distortion classification.
