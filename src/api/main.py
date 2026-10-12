@@ -11,7 +11,7 @@ Endpoints:
 Safety pipeline (runs before any inference):
   1. check_crisis()  - routes crisis text to a fixed safe message (never LLM)
   2. check_misuse()  - blocks therapy/advice extraction attempts
-  3. DistilBERT inference + LIME + optional LLM explanation
+  3. MentalRoBERTa inference + LIME + optional LLM explanation
 
 Usage (from project root):
     uvicorn src.api.main:app --reload --port 8000
@@ -69,7 +69,7 @@ _llm_explainer = None   # loaded only if GROQ_API_KEY is set
 async def lifespan(app: FastAPI):
     """Load model on startup, release on shutdown."""
     global _explainer, _llm_explainer
-    print("Loading DistilBERT model ...")
+    print("Loading MentalRoBERTa model ...")
     _explainer = Explainer()
     print("Model ready.")
 
@@ -184,7 +184,7 @@ def analyse(req: AnalyseRequest) -> AnalyseResponse:
     """
     Five-step pipeline:
       0. Safety checks         - crisis routing + misuse detection (before any inference)
-      1. DistilBERT inference  - probabilities for all 10 labels
+      1. MentalRoBERTa inference - probabilities for all 10 labels
       2. LIME                  - top keywords per detected label
       3. Guidance lookup       - CBT technique + Socratic question + reframe
       4. LLM explanation       - optional grounded plain-English explanation (Groq)

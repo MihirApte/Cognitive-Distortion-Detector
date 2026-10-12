@@ -1,24 +1,24 @@
 """
 src/train_phase2.py
 -------------------
-Unified Phase 2 training script for DeBERTa-v3-base and MentalRoBERTa.
+Phase 2 training script: fine-tunes MentalRoBERTa (mental/mental-roberta-base).
 
-Key improvements over Phase 1 (DistilBERT):
+Differences from Phase 1 (DistilBERT):
   - max_length = 256 (handles full paragraphs, not just 128 tokens)
-  - Focal Loss to handle class imbalance (down-weights easy examples)
-  - Per-label threshold sweep after training to find optimal threshold per label
-  - Saves full evaluation results JSON for comparison table
+  - BCE loss with per-label pos_weight (capped at 3) to counter class imbalance
+    (Focal Loss is available via use_focal_loss=True but was not used)
+  - Best epoch picked on a held-out validation split
+  - Saves full evaluation results JSON
 
-Usage (run on Colab after mounting Drive and cloning repo):
-    # DeBERTa
-    python src/train_phase2.py --model deberta
+The base model is gated on Hugging Face (CC BY-NC 4.0): accept its terms and
+log in (huggingface_hub.login()) before the first training run.
 
-    # MentalRoBERTa
-    python src/train_phase2.py --model mentalroberta
+Usage (Colab, after cloning the repo and copying the CSVs):
+    python src/train_phase2.py --model mentalroberta --epochs 10
 
 Outputs saved to:
-    models/deberta_cognitive_distortion/          (or mentalroberta_...)
-    results/deberta_results.json                  (or mentalroberta_...)
+    models/mentalroberta_cognitive_distortion/
+    results/mentalroberta_results.json
 """
 
 from __future__ import annotations
@@ -43,34 +43,12 @@ from sklearn.metrics import f1_score, hamming_loss
 from src.config import (
     DISTORTION_LABELS, NUM_LABELS,
     DATA_PROC_DIR, RESULTS_DIR,
-    DEBERTA_MODEL_DIR, MENTALROBERTA_MODEL_DIR,
-    BASE_MODEL_DEBERTA, BASE_MODEL_MENTALROBERTA,
-    BASE_MODEL, ROBERTA_MODEL_DIR,
+    MENTALROBERTA_MODEL_DIR, BASE_MODEL_MENTALROBERTA,
     MAX_TOKEN_LENGTH_PHASE2, SEED,
 )
 
 # ── Model registry ─────────────────────────────────────────────────────────────
 MODEL_REGISTRY = {
-    "deberta": {
-        "base_model": BASE_MODEL_DEBERTA,
-        "output_dir": DEBERTA_MODEL_DIR,
-        "results_file": "deberta_results.json",
-        "batch_size": 8,
-        "lr": 3e-5,          # 1e-5 was too low: model collapsed to predicting class priors
-        "warmup_ratio": 0.1,
-        "adamw_eps": 1e-6,   # CRITICAL: default 1e-8 causes NaN with DeBERTa
-        "focal_alpha": 0.75, # up-weights positives (rare labels); 0.25 suppresses them
-    },
-    # Ungated fallback: mental/mental-roberta-base needs HF access approval
-    "roberta": {
-        "base_model": BASE_MODEL,            # roberta-base
-        "output_dir": ROBERTA_MODEL_DIR,
-        "results_file": "roberta_results.json",
-        "batch_size": 16,
-        "lr": 2e-5,
-        "warmup_ratio": 0.06,
-        "adamw_eps": 1e-8,
-    },
     "mentalroberta": {
         "base_model": BASE_MODEL_MENTALROBERTA,
         "output_dir": MENTALROBERTA_MODEL_DIR,
@@ -247,7 +225,7 @@ def train(
     batch_size: int | None = None,
     lr: float | None = None,
     max_length: int = MAX_TOKEN_LENGTH_PHASE2,
-    use_focal_loss: bool = True,
+    use_focal_loss: bool = False,
     focal_gamma: float = 2.0,
     global_threshold: float = 0.40,
 ):
@@ -405,11 +383,11 @@ def train(
 # ── CLI ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Phase 2 fine-tuning")
-    parser.add_argument("--model", required=True, choices=["deberta", "roberta", "mentalroberta"])
+    parser.add_argument("--model", required=True, choices=["mentalroberta"])
     parser.add_argument("--epochs",     type=int,   default=5)
     parser.add_argument("--batch-size", type=int,   default=None)
     parser.add_argument("--lr",         type=float, default=None)
-    parser.add_argument("--no-focal",   action="store_true")
+    parser.add_argument("--focal",      action="store_true", help="use Focal Loss instead of weighted BCE")
     parser.add_argument("--threshold",  type=float, default=0.40)
     args = parser.parse_args()
 
@@ -418,6 +396,6 @@ if __name__ == "__main__":
         epochs=args.epochs,
         batch_size=args.batch_size,
         lr=args.lr,
-        use_focal_loss=not args.no_focal,
+        use_focal_loss=args.focal,
         global_threshold=args.threshold,
     )

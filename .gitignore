@@ -30,11 +30,6 @@ data/synthetic/
 
 # Trained model weights — tracked via Git LFS (see .gitattributes)
 # Phase 1 (DistilBERT) model IS committed via LFS
-# Phase 2 (RoBERTa) model excluded — not deployed yet
-models/roberta_cognitive_distortion/
-
-# Phase 2 test/dev scripts — not part of Phase 1
-test_roberta.py
 
 # Expert annotation forms (planning artifacts, not part of deployment)
 forms/

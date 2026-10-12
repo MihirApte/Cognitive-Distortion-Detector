@@ -1,7 +1,7 @@
 """
 src/explain.py
 --------------
-LIME explainability wrapper for the fine-tuned DistilBERT model (Phase 1).
+LIME explainability wrapper for the fine-tuned MentalRoBERTa model (deployed model).
 
 Provides:
   - Explainer class: loads model, runs LIME, saves HTML + CSV outputs
@@ -22,19 +22,19 @@ import html
 import numpy as np
 import pandas as pd
 import torch
-from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from lime.lime_text import LimeTextExplainer
 
 from src.config import (
     DISTORTION_LABELS, NUM_LABELS,
     DATA_PROC_DIR, MODELS_DIR, RESULTS_DIR,
-    DISTILBERT_MODEL_DIR,
+    MENTALROBERTA_MODEL_DIR,
 )
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-MODEL_PATH   = DISTILBERT_MODEL_DIR   # models/distilbert_cognitive_distortion
+MODEL_PATH   = MENTALROBERTA_MODEL_DIR   # models/mentalroberta_cognitive_distortion
 LIME_DIR     = os.path.join(RESULTS_DIR, "lime_explanations")
-MAX_LEN      = 128
+MAX_LEN      = 256   # must match the max_length used in training
 THRESHOLD    = 0.40
 NUM_SAMPLES  = 500   # LIME perturbation samples - 500 is fast & stable enough
 NUM_FEATURES = 10    # top N words shown per explanation
@@ -48,7 +48,7 @@ SHORT = [
 
 class Explainer:
     """
-    Wraps DistilBERT for multi-label LIME explanations (Phase 1).
+    Wraps the fine-tuned MentalRoBERTa for multi-label LIME explanations.
 
     Example
     -------
@@ -61,15 +61,15 @@ class Explainer:
         if not os.path.isdir(model_path):
             raise FileNotFoundError(
                 f"Model not found at: {model_path}\n"
-                "Train DistilBERT first by running notebooks/02_train_distilbert.ipynb on Colab,\n"
-                "then place the saved model in models/distilbert_cognitive_distortion/."
+                "Train MentalRoBERTa with notebooks/06_mentalroberta_training.ipynb on Colab,\n"
+                "then place the saved model in models/mentalroberta_cognitive_distortion/."
             )
         self.threshold = threshold
         self.device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        print(f"Loading DistilBERT model from: {model_path}")
-        self.tokenizer = DistilBertTokenizerFast.from_pretrained(model_path)
-        self.model     = DistilBertForSequenceClassification.from_pretrained(
+        print(f"Loading model from: {model_path}")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.model     = AutoModelForSequenceClassification.from_pretrained(
             model_path, num_labels=NUM_LABELS
         )
         self.model.to(self.device)
@@ -97,7 +97,7 @@ class Explainer:
             enc = self.tokenizer(
                 batch_texts,
                 max_length=MAX_LEN,
-                padding="max_length",
+                padding=True,   # pad to longest in batch (same output, much faster on CPU)
                 truncation=True,
                 return_tensors="pt",
             )
