@@ -2,7 +2,7 @@
 
 A multi-label NLP classifier that identifies cognitive distortions in text, grounded in Cognitive Behavioural Therapy (CBT). Built as a portfolio project combining transformer fine-tuning, explainability (LIME), an LLM explanation layer with hallucination checks, safety guardrails, and a full-stack deployment on HuggingFace Spaces.
 
-**[Try the live demo →](https://huggingface.co/spaces/MihirApte/cognitive-distortion-detector)**
+**[Try the live demo →](https://huggingface.co/spaces/mihir-apte/cognitive-distortion-detector)**
 
 ---
 

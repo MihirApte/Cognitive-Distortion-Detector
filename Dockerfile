@@ -31,6 +31,11 @@ COPY requirements.txt .
 RUN grep -v "^torch" requirements.txt > requirements-filtered.txt && \
     pip install --no-cache-dir -r requirements-filtered.txt
 
+# Build-time check: show installed versions and fail here (with the real error)
+# if transformers cannot be imported, instead of crashing at app start.
+RUN pip list 2>/dev/null | grep -iE "^(transformers|tokenizers|huggingface|torch|numpy|safetensors) " ; \
+    python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; print('transformers import OK')"
+
 # ── Copy application code ──────────────────────────────────────────────────────
 COPY . .
 
