@@ -1,12 +1,3 @@
----
-title: Cognitive Distortion Detector
-emoji: 🧠
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
----
-
 # Cognitive Distortion Detector
 
 A multi-label NLP classifier that identifies cognitive distortions in text, grounded in Cognitive Behavioural Therapy (CBT). Built as a portfolio project combining transformer fine-tuning, explainability (LIME), an LLM explanation layer with hallucination checks, safety guardrails, and a full-stack deployment on HuggingFace Spaces.
